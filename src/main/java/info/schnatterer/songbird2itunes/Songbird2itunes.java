@@ -28,12 +28,6 @@ import org.slf4j.LoggerFactory;
 import com4j.ComException;
 
 public class Songbird2itunes {
-	/**
-	 * After running into a {@link ComException} - amount of times adding track
-	 * is retried before exiting with an error.
-	 */
-	private static final int COM_EXCEPTION_RETRIES = 50;
-
 	/** SLF4J-Logger. */
 	private final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -57,6 +51,13 @@ public class Songbird2itunes {
 	 * 
 	 * @param songbirdDbFile
 	 *            absolute File path to songbird database
+	 * @param exceptionRetries
+	 *            After running into a {@link ComException} - amount of times
+	 *            adding track is retried before exiting with an error.
+	 * @param setSystemDate
+	 *            use workaround - try to set the date added in iTunes by
+	 *            setting the system date to the date added and then adding the
+	 *            track
 	 * 
 	 * @return statistics that keeps track of the number of converted objects
 	 * 
@@ -65,8 +66,8 @@ public class Songbird2itunes {
 	 * @throws ITunesException
 	 *             errors when writing to target iTunes
 	 */
-	public Statistics convert(String songbirdDbFile) throws SQLException,
-			ITunesException {
+	public Statistics convert(String songbirdDbFile, int exceptionRetries,
+			boolean setSystemDate) throws SQLException, ITunesException {
 		File file = new File(songbirdDbFile);
 
 		// Create database wrapper instance
@@ -76,7 +77,8 @@ public class Songbird2itunes {
 
 		Statistics stats = new Statistics();
 
-		convertTracks(songbirdDb, iTunes, stats);
+		convertTracks(songbirdDb, iTunes, stats, exceptionRetries,
+				setSystemDate);
 
 		convertPlaylists(songbirdDb, iTunes, stats);
 		return stats;
@@ -148,6 +150,13 @@ public class Songbird2itunes {
 	 * @param stats
 	 *            the statistics object that keeps track of the number of
 	 *            converted objects
+	 * @param exceptionRetries
+	 *            After running into a {@link ComException} - amount of times
+	 *            adding track is retried before exiting with an error.
+	 * @param setSystemDate
+	 *            use workaround - try to set the date added in iTunes by
+	 *            setting the system date to the date added and then adding the
+	 *            track
 	 * 
 	 * @throws SQLException
 	 *             errors when querying source database
@@ -155,17 +164,20 @@ public class Songbird2itunes {
 	 *             errors when writing to target iTunes
 	 */
 	private void convertTracks(SongbirdDb songbirdDb, ITunes iTunes,
-			Statistics stats) throws SQLException, ITunesException {
+			Statistics stats, int exceptionRetries, boolean setSystemDate)
+			throws SQLException, ITunesException {
 		// Query all tracks from songbird
 		List<MediaItem> tracks = songbirdDb.getAllTracks();
 		log.info("Found " + tracks.size() + " tracks");
 
 		for (MediaItem sbTrack : tracks) {
-			addTrack(iTunes, sbTrack, stats, COM_EXCEPTION_RETRIES);
+			addTrack(iTunes, sbTrack, stats, exceptionRetries, setSystemDate);
 		}
 
-		log.debug("Trying to resync system time from time server");
-		sysCall("cmd /C w32tm /resync /force");
+		if (setSystemDate) {
+			log.debug("Trying to resync system time from time server");
+			sysCall("cmd /C w32tm /resync /force");
+		}
 	}
 
 	/**
@@ -180,14 +192,19 @@ public class Songbird2itunes {
 	 * @param stats
 	 *            the statistics object that keeps track of the number of
 	 *            converted objects
-	 * @param nRetries
-	 *            number of retries after a {@link ComException}
+	 * @param exceptionRetries
+	 *            After running into a {@link ComException} - amount of times
+	 *            adding track is retried before exiting with an error.
+	 * @param setSystemDate
+	 *            use workaround - try to set the date added in iTunes by
+	 *            setting the system date to the date added and then adding the
+	 *            track
 	 * 
 	 * @throws ITunesException
-	 *             after {@link #COM_EXCEPTION_RETRIES} unsuccessful retries.
+	 *             after all retries have been used.
 	 */
 	private void addTrack(ITunes iTunes, MediaItem sbTrack, Statistics stats,
-			int nRetries) throws ITunesException {
+			int exceptionRetries, boolean setSystemDate) throws ITunesException {
 		Track iTunesTrack = null;
 		try {
 			stats.trackProcessed();
@@ -210,22 +227,25 @@ public class Songbird2itunes {
 			Long skipCount = sbTrack
 					.getPropertyAsLong(Property.PROP_SKIP_COUNT);
 
-			// TODO fail on error here?
-			/*
-			 * Changing the dateAdded is not possible via iTunes COM API
-			 * 
-			 * Dirty Hack: Change the computer's system date, add the file and
-			 * This will only work if the process runs as administrator and
-			 * iTunes is either not running or already started as administrator!
-			 */
-			log.debug("Track #" + stats.getTracksProcessed()
-					+ ": Setting system time to " + dateCreated);
-			// dd-MM-yy
-			sysCall("cmd /C date "
-					+ dateFormatHolderDate.get().format(dateCreated));
-			// hh:mm:ss
-			sysCall("cmd /C time "
-					+ dateFormatHolderTime.get().format(dateCreated));
+			if (setSystemDate) {
+				// TODO fail on error here?
+				/*
+				 * Changing the dateAdded is not possible via iTunes COM API
+				 * 
+				 * Dirty Hack: Change the computer's system date, add the file
+				 * and This will only work if the process runs as administrator
+				 * and iTunes is either not running or already started as
+				 * administrator!
+				 */
+				log.debug("Track #" + stats.getTracksProcessed()
+						+ ": Setting system time to " + dateCreated);
+				// dd-MM-yy
+				sysCall("cmd /C date "
+						+ dateFormatHolderDate.get().format(dateCreated));
+				// hh:mm:ss
+				sysCall("cmd /C time "
+						+ dateFormatHolderTime.get().format(dateCreated));
+			}
 
 			iTunesTrack = iTunes.addFile(absolutePath);
 
@@ -262,7 +282,8 @@ public class Songbird2itunes {
 							+ sbTrack.getContentUrl(), e);
 			stats.trackFailed();
 		} catch (ComException e) {
-			retryAdding(e, iTunes, stats, sbTrack, nRetries);
+			retryAdding(e, iTunes, stats, sbTrack, exceptionRetries,
+					setSystemDate);
 		}
 	}
 
@@ -310,22 +331,27 @@ public class Songbird2itunes {
 	 *            reference to the songbird track
 	 * @param nRetries
 	 *            amount of retries left
+	 * @param setSystemDate
+	 *            use workaround - try to set the date added in iTunes by
+	 *            setting the system date to the date added and then adding the
+	 *            track
 	 * 
 	 * @throws ITunesException
-	 *             after {@link #COM_EXCEPTION_RETRIES} unsuccessful retries.
+	 *             after all retries have been used.
 	 */
 	private void retryAdding(ComException e, ITunes iTunes, Statistics stats,
-			MediaItem sbTrack, int nRetries) throws ITunesException {
+			MediaItem sbTrack, int nRetries, boolean setSystemDate)
+			throws ITunesException {
 		if (nRetries > 0) {
 			log.debug(
 					"Track was added, but error setting attributes. Retrying "
 							+ nRetries + " more times. File: "
 							+ sbTrack.getContentUrl(), e);
-			addTrack(iTunes, sbTrack, stats, nRetries - 1);
+			addTrack(iTunes, sbTrack, stats, nRetries - 1, setSystemDate);
 		} else {
-			throw new ITunesException("Unable to modify track. Tried "
-					+ COM_EXCEPTION_RETRIES + " times without luck. File: "
-					+ sbTrack.getContentUrl(), e);
+			throw new ITunesException(
+					"Unable to modify track. Tried multiple times without luck. File: "
+							+ sbTrack.getContentUrl(), e);
 		}
 	}
 
