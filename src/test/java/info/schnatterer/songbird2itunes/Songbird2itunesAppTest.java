@@ -4,11 +4,14 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import info.schnatterer.itunes4j.ITunesException;
 import info.schnatterer.songbird2itunes.Songbird2itunes.Statistics;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.sql.SQLException;
 
 import org.apache.tools.ant.types.Commandline;
@@ -26,7 +29,8 @@ public class Songbird2itunesAppTest {
 	@Mock
 	private Songbird2itunes s2iMock;
 
-	private final Songbird2itunesApp classUnderTest = new Songbird2itunesApp4Test();
+	private final Songbird2itunesApp classUnderTest = new Songbird2itunesApp4Test(
+			"yes");
 
 	/**
 	 * Asserts the proper return code when calling with --help parameters.
@@ -34,7 +38,8 @@ public class Songbird2itunesAppTest {
 	@Test
 	public void help() {
 		assertEquals("Running with help parameter returned unexpected result",
-				0, classUnderTest.run(new String[] { "--help" }));
+				Songbird2itunesApp.EXIT_SUCCESS,
+				classUnderTest.run(new String[] { "--help" }));
 	}
 
 	/**
@@ -65,7 +70,8 @@ public class Songbird2itunesAppTest {
 	public void invalidParams() throws SQLException, ITunesException {
 		assertEquals(
 				"Running with invalid parameters returned unexpected result",
-				1, classUnderTest.run(new String[] {}));
+				Songbird2itunesApp.EXIT_INVALID_PARAMS,
+				classUnderTest.run(new String[] {}));
 	}
 
 	/**
@@ -78,16 +84,48 @@ public class Songbird2itunesAppTest {
 	public void errorConversion() throws SQLException, ITunesException {
 		when(s2iMock.convert(anyString(), anyInt(), anyBoolean())).thenThrow(
 				new RuntimeException("Mocked exception"));
-		assertEquals("Error during conversoin returned unexpected result", 2,
+		assertEquals("Error during conversoin returned unexpected result",
+				Songbird2itunesApp.EXIT_ERROR_CONVERSION,
 				classUnderTest.run(Commandline
 						.translateCommandline("-r 23 -d path")));
 	}
 
+	/**
+	 * Asserts proper return code and behavior when user does not confirm usage
+	 * of date added workaround.
+	 * 
+	 * @throws ITunesException
+	 * @throws SQLException
+	 */
+	@Test
+	public void notConfirmedWorkaround() throws SQLException, ITunesException {
+		when(s2iMock.convert(anyString(), anyInt(), anyBoolean())).thenReturn(
+				new Statistics());
+		Songbird2itunesApp classUnderTestNoConfirmation = new Songbird2itunesApp4Test(
+				"no confirm");
+		assertEquals(
+				"Denying confirmation for using the workaround returned unexpected result",
+				Songbird2itunesApp.EXIT_SUCCESS, classUnderTestNoConfirmation
+						.run(Commandline.translateCommandline("-r 23 -d path")));
+		verify(s2iMock, never()).convert(anyString(), anyInt(), anyBoolean());
+	}
+
 	private class Songbird2itunesApp4Test extends Songbird2itunesApp {
+		private String confirmationString;
+
+		public Songbird2itunesApp4Test(String confirmationString) {
+			this.confirmationString = confirmationString;
+		}
+
 		@Override
 		Songbird2itunes createSongbird2itunes() {
 			return s2iMock;
 		}
 
+		@Override
+		InputStream createSystemIn() {
+			return new ByteArrayInputStream(new String(confirmationString
+					+ "\n").getBytes());
+		}
 	}
 }

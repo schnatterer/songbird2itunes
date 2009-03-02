@@ -2,6 +2,9 @@ package info.schnatterer.songbird2itunes;
 
 import info.schnatterer.songbird2itunes.Songbird2itunes.Statistics;
 
+import java.io.InputStream;
+import java.util.Scanner;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,6 +14,10 @@ import com.beust.jcommander.ParameterException;
  * Entry point for the songbird2Itunes Command Line Application
  */
 public class Songbird2itunesApp {
+	static final int EXIT_SUCCESS = 0;
+	static final int EXIT_INVALID_PARAMS = 1;
+	static final int EXIT_ERROR_CONVERSION = 2;
+
 	/** SLF4J-Logger. */
 	private final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -29,49 +36,80 @@ public class Songbird2itunesApp {
 		Songbird2itunesCli cliParams = null;
 
 		try {
-			cliParams = readParams(args);
+			cliParams = Songbird2itunesCli.readParams(args, "songbird2itunes");
 			if (cliParams != null) {
-				// Successfully read command line params
-				Statistics stats = createSongbird2itunes().convert(
-						cliParams.getPath(), cliParams.getRetries(),
-						cliParams.isDateAddedWorkaround());
-				log.info("Finished converting.");
-				log.info("Processed " + stats.getTracksProcessed()
-						+ " tracks (total) of which " + stats.getTracksFailed()
-						+ " failed.");
-				log.info("Processed " + stats.getPlaylistsProcessed()
-						+ " playlists of which " + stats.getPlaylistsFailed()
-						+ " failed.");
-				log.info("Processed " + stats.getPlaylistTracksProcessed()
-						+ " tracks (playlist members) of which "
-						+ stats.getPlaylistTracksFailed() + " failed.");
-				log.info("See log file for more info");
-				return 0;
+				if (cliParams.isDateAddedWorkaround() && !confirmedWorkaround()) {
+					return EXIT_SUCCESS;
+				}
+				// Successfully read command line params. Do conversion
+				printStats(createSongbird2itunes().convert(cliParams.getPath(),
+						cliParams.getRetries(),
+						cliParams.isDateAddedWorkaround()));
+				return EXIT_SUCCESS;
 			}
 		} catch (ParameterException e) {
 			log.error("Error parsing command line arguments.");
-			ret = 1;
+			ret = EXIT_INVALID_PARAMS;
 		} catch (Exception e) { // Outmost "catch all" block for logging any
 			// exception exiting application with error
 			log.error("Conversion failed with error \"" + e.getMessage()
 					+ "\". Please see log file.", e);
-			ret = 2;
+			ret = EXIT_ERROR_CONVERSION;
 		}
 		return ret;
 	}
 
 	/**
-	 * Delegates to CLI object. Useful for testing.
+	 * Writes statistics to log.
 	 * 
-	 * @param argv
-	 * @return an instance of {@link Songbird2itunesCli} when everything went
-	 *         ok, or <code>null</code> if "-- help" was called.
-	 * 
-	 * @throws ParameterException
-	 *             when something went wrong
+	 * @param stats
+	 *            statistics to write
 	 */
-	Songbird2itunesCli readParams(String[] args) {
-		return Songbird2itunesCli.readParams(args, "songbird2itunes");
+	private void printStats(Statistics stats) {
+		log.info("Finished converting.");
+		log.info("Processed " + stats.getTracksProcessed()
+				+ " tracks (total) of which " + stats.getTracksFailed()
+				+ " failed.");
+		log.info("Processed " + stats.getPlaylistsProcessed()
+				+ " playlists of which " + stats.getPlaylistsFailed()
+				+ " failed.");
+		log.info("Processed " + stats.getPlaylistTracksProcessed()
+				+ " tracks (playlist members) of which "
+				+ stats.getPlaylistTracksFailed() + " failed.");
+		log.info("See log file for more info");
+	}
+
+	/**
+	 * Make user confirm to use the "date added workaround"
+	 * 
+	 * @return <code>true</code> if the user confirmed, <code>false</code>
+	 *         otherwise
+	 */
+	private boolean confirmedWorkaround() {
+		Scanner scanner = null;
+		try {
+			scanner = new Scanner(createSystemIn());
+			System.out
+					.println("You used the option for using the workaround to set the date added in iTunes. As setting the date added in iTunes is not possible, this workaround set the system clock to the desired date and then adds the song. This requires administration rights. Also make sure to either close iTunes before starting or start it as administrator.");
+			System.out
+					.println("If you REALLY want to do this, type \"yes\". If not just press enter and restart without this option!");
+			System.out.flush();
+			if ("yes".equals(scanner.nextLine())) {
+				return true;
+			}
+		} finally {
+			if (scanner != null) {
+				scanner.close();
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * @return a new instance of System.in. Useful for testing.
+	 */
+	InputStream createSystemIn() {
+		return System.in;
 	}
 
 	/**
