@@ -90,7 +90,7 @@ public class Songbird2itunesApp {
 		try {
 			scanner = new Scanner(createSystemIn());
 			System.out
-					.println("You used the option for using the workaround to set the date added in iTunes. As setting the date added in iTunes is not possible, this workaround set the system clock to the desired date and then adds the song. This requires administration rights. Also make sure to either close iTunes before starting or start it as administrator.");
+					.println("You used the option for using the workaround to set the date added in iTunes. As setting the date added in iTunes is not possible, this workaround sets the system clock to the desired date and then adds the song to iTunes. This requires administration rights. Also make sure to either close iTunes before starting or start it as administrator. Finally, you should deactivate the automatic sync of windows with a time server for the progress of conversion to iTunes.");
 			System.out
 					.println("If you REALLY want to do this, type \"yes\". If not just press enter and restart without this option!");
 			System.out.flush();

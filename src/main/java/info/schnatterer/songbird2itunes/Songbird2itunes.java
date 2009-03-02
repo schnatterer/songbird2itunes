@@ -285,11 +285,10 @@ public class Songbird2itunes {
 			stats.trackFailed();
 		} catch (WrongParameterException e) {
 			log.warn(
-					"File not added by iTunes. Unsupported type?"
+					"File not added by iTunes. Unsupported type? Skipping file: "
 							+ sbTrack.getContentUrl(), e);
 			stats.trackFailed();
 			// TODO try to convert?
-			throw e;
 		} catch (NotModifiableException e) {
 			retryAdding(e, iTunes, stats, sbTrack, exceptionRetries,
 					setSystemDate);
