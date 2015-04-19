@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+	<!-- Send all infos to sysOut showing only the message -->
+	<appender name="STDOUT-NORMAL" class="ch.qos.logback.core.ConsoleAppender">
+		<Target>System.out</Target>
+		<filter class="ch.qos.logback.classic.filter.LevelFilter">
+			<level>INFO</level>
+			<onMatch>ACCEPT</onMatch>
+			<onMismatch>DENY</onMismatch>
+		</filter>
+		<encoder>
+			<!-- Show only message but hide stacktraces -->
+			<Pattern>%m%n%nopex</Pattern>
+		</encoder>
+	</appender>
+
+	<!-- Send all warnings and errors to sysErr showing level and message -->
+	<appender name="STDOUT-WARN" class="ch.qos.logback.core.ConsoleAppender">
+		<Target>System.err</Target>
+		<filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+			<level>warn</level>
+		</filter>
+		<encoder>
+			<!-- Show Level and message but hide stacktraces -->
+			<Pattern>%level: %m%n%nopex</Pattern>
+		</encoder>
+	</appender>
+
+	<!-- Log everything to file -->
+	<appender name="FILE" class="ch.qos.logback.core.FileAppender">
+		<file>songbird2itunes.log</file>
+		<encoder>
+			<pattern>%d{ISO8601} %-5level %logger - %m%n</pattern>
+		</encoder>
+	</appender>
+
+	<root level="DEBUG">
+		<appender-ref ref="STDOUT-NORMAL" />
+		<appender-ref ref="STDOUT-WARN" />
+		<appender-ref ref="FILE" />
+	</root>
+
+</configuration>
