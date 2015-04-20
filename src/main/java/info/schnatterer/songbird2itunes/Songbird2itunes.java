@@ -178,8 +178,6 @@ public class Songbird2itunes {
 	 * @param nRetries
 	 *            number of retries after an "a0040203" error
 	 * 
-	 * @return
-	 * 
 	 * @throws ITunesException
 	 *             after {@link #A0040203_RETRIES} unsuccessful retries.
 	 */

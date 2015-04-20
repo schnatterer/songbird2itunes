@@ -5,9 +5,8 @@
 	<groupId>info.schnatterer</groupId>
 	<artifactId>songbird2itunes</artifactId>
 	<version>1.0-SNAPSHOT</version>
-	<packaging>jar</packaging>
-
 	<name>songbird2itunes</name>
+	<description>Migration tool to migrate a songbird database to itunes</description>
 	<url>https://github.com/schnatterer/songbird2itunes</url>
 
 	<licenses>
@@ -59,6 +58,46 @@
 					<arguments>-Prelease</arguments>
 					<!-- Make our tags look like e.g. "v.1.0.1" -->
 					<tagNameFormat>v.@{project.version}</tagNameFormat>
+				</configuration>
+			</plugin>
+			<!-- The configuration of maven-assembly-plugin -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<!-- The configuration of the plugin -->
+				<configuration>
+					<!-- Specifies the configuration file of the assembly plugin -->
+					<descriptors>
+						<descriptor>src/main/assembly/assembly.xml</descriptor>
+					</descriptors>
+				</configuration>
+				<!-- execute the assembly:single goal during the install phase. -->
+				<executions>
+					<execution>
+						<phase>install</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<!-- The configuration of maven-jar-plugin -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<configuration>
+					<!-- Use the same name for the jar, folder has version information (assembly) -->
+					<finalName>${project.artifactId}</finalName>
+					<!-- Configure archiver -->
+					<archive>
+						<!-- Set up manifest -->
+						<manifest>
+							<addClasspath>true</addClasspath>
+							<!-- Within assembly, all dependencies are within lib dir -->
+							<classpathPrefix>lib/</classpathPrefix>
+							<mainClass>info.schnatterer.songbird2itunes.Songbird2itunesApp</mainClass>
+						</manifest>
+					</archive>
 				</configuration>
 			</plugin>
 		</plugins>
