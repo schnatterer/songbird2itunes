@@ -1,6 +1,6 @@
 package info.schnatterer.songbird2itunes;
 
-import info.schnatterer.itunes4j.exception.ITunesException;
+import info.schnatterer.itunes4j.ITunesException;
 
 import java.sql.SQLException;
 
