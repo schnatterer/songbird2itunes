@@ -2,12 +2,15 @@ package info.schnatterer.songbird2itunes;
 
 import info.schnatterer.itunes4j.ITunes;
 import info.schnatterer.itunes4j.ITunesException;
+import info.schnatterer.itunes4j.entity.Playlist;
 import info.schnatterer.itunes4j.entity.Rating;
 import info.schnatterer.itunes4j.entity.Track;
 import info.schnatterer.java.lang.ELong;
 import info.schnatterer.songbirddbapi4.SongbirdDb;
 import info.schnatterer.songbirddbapi4j.domain.MediaItem;
+import info.schnatterer.songbirddbapi4j.domain.MemberMediaItem;
 import info.schnatterer.songbirddbapi4j.domain.Property;
+import info.schnatterer.songbirddbapi4j.domain.SimpleMediaList;
 
 import java.io.File;
 import java.io.IOException;
@@ -21,7 +24,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com4j.ComException;
-import com4j.util.ComObjectCollector;
 
 public class Songbird2itunes {
 	/**
@@ -29,37 +31,104 @@ public class Songbird2itunes {
 	 * retried before exiting with an error.
 	 */
 	private static final int A0040203_RETRIES = 50;
-	/**
-	 * Maximal amount of milliseconds the application sleeps after adding a
-	 * file. Sleeping might be necessary because of the "a0040203" error
-	 */
-	private static final int A0040203_SLEEP_TIME_MAX = 200;
-	/**
-	 * The amount of milliseconds that is added to the sleeptime after an
-	 * "a0040203" error occurred.
-	 */
-	private static final int A0040203_SLEEP_TIME_INCREMENT = 10;
 
 	/** SLF4J-Logger. */
 	private final Logger log = LoggerFactory.getLogger(getClass());
 
-	public void convert(String songbirdDbFile) throws SQLException,
+	/**
+	 * Converts all tracks and playlists from a songbird database to iTunes.
+	 * 
+	 * @param songbirdDbFile
+	 *            absolute File path to songbird database
+	 * 
+	 * @return statistics that keeps track of the number of converted objects
+	 * 
+	 * @throws SQLException
+	 *             errors when querying source database
+	 * @throws ITunesException
+	 *             errors when writing to target iTunes
+	 */
+	public Statistics convert(String songbirdDbFile) throws SQLException,
 			ITunesException {
 		File file = new File(songbirdDbFile);
-		int sleepTime = 0;
 
 		// Create database wrapper instance
 		SongbirdDb songbirdDb = createSongbirdDb(file);
 		// Create reference to iTunes
 		ITunes iTunes = createItunes();
 
+		Statistics stats = new Statistics();
+
+		convertTracks(songbirdDb, iTunes, stats);
+
+		convertPlaylists(songbirdDb, iTunes, stats);
+		return stats;
+	}
+
+	/**
+	 * Converts playlists from songbird2iTunes.
+	 * 
+	 * @param songbirdDb
+	 *            songbird database wrapper
+	 * @param iTunes
+	 *            iTunes wrapper
+	 * @param stats
+	 *            the statistics object that keeps track of the number of
+	 *            converted objects
+	 * 
+	 * @throws SQLException
+	 *             errors when querying source database
+	 * @throws ITunesException
+	 *             errors when writing to target iTunes
+	 */
+	private void convertPlaylists(SongbirdDb songbirdDb, ITunes iTunes,
+			Statistics stats) throws SQLException, ITunesException {
+		List<SimpleMediaList> playLists = songbirdDb.getPlayLists(true, true);
+		for (SimpleMediaList playList : playLists) {
+			stats.playlistProcessed();
+			Playlist iTunesplaylist = iTunes.createPlaylist(playList.getList()
+					.getProperty(Property.PROP_MEDIA_LIST_NAME));
+			for (MemberMediaItem member : playList.getMembers()) {
+				try {
+					stats.playlistTrackProcessed();
+					iTunesplaylist.addFile(new File(new URI(member.getMember()
+							.getContentUrl())).getAbsolutePath());
+				} catch (URISyntaxException e) {
+					log.warn(
+							"Error adding track to playlist \""
+									+ playList.getList().getProperty(
+											Property.PROP_MEDIA_LIST_NAME)
+									+ "\" , invalid URI: "
+									+ member.getMember().getContentUrl(), e);
+					stats.playlistTrackFailed();
+				}
+			}
+		}
+	}
+
+	/**
+	 * Converts tracks from songbird2iTunes.
+	 * 
+	 * @param songbirdDb
+	 *            songbird database wrapper
+	 * @param iTunes
+	 *            iTunes wrapper
+	 * @param stats
+	 *            the statistics object that keeps track of the number of
+	 *            converted objects
+	 * 
+	 * @throws SQLException
+	 *             errors when querying source database
+	 * @throws ITunesException
+	 *             errors when writing to target iTunes
+	 */
+	private void convertTracks(SongbirdDb songbirdDb, ITunes iTunes,
+			Statistics stats) throws SQLException, ITunesException {
 		// Query all tracks from songbird
 		List<MediaItem> tracks = songbirdDb.getAllTracks();
-		log.info(String.format("Found %s tracks", tracks.size()));
+		log.info("Found " + tracks.size() + " tracks");
 
-		for (int i = 0; i < tracks.size(); i++) {
-			MediaItem sbTrack = tracks.get(i);
-
+		for (MediaItem sbTrack : tracks) {
 			// TODO offer option for setting the date
 			/*
 			 * Changing the dateAdded is not possible via iTunes COM API
@@ -81,8 +150,7 @@ public class Songbird2itunes {
 			// // Runtime.getRuntime().exec("cmd /C time " + strTimeToSet); //
 			// hh:mm:ss
 
-			sleepTime = addTrack(iTunes, i, sbTrack, A0040203_RETRIES,
-					sleepTime);
+			addTrack(iTunes, sbTrack, stats, A0040203_RETRIES);
 		}
 
 		// TODO once we're finished re-sync system clock
@@ -93,47 +161,34 @@ public class Songbird2itunes {
 		// System.out
 		// .println("Warning - Failed to resync system time from time server");
 		// }
-
-		// Query all playlists
-		// List<SimpleMediaList> playLists = songbirdDb.getPlayLists(true,
-		// true);
-		// for (SimpleMediaList playList : playLists) {
-		// try {
-		// Playlist iTunesplaylist = iTunes.createPlaylist(playList
-		// .getList().getProperty(Property.PROP_MEDIA_LIST_NAME));
-		// for (MemberMediaItem member : playList.getMembers()) {
-		// iTunesplaylist.addFile(new File(new URI(member.getMember()
-		// .getContentUrl())).getAbsolutePath());
-		// }
-		// } catch (ITunesException e) {
-		// // TODO handle
-		// throw e;
-		// } catch (URISyntaxException e) {
-		// // TODO handle
-		// throw new RuntimeException(e);
-		// }
-		// }
 	}
 
 	/**
-	 * Add track to iTunes.
+	 * Add track to iTunes. If an "a0040203" error occurs the method calls
+	 * itself <code>nRetries</code> recursively. If it still fails an exception
+	 * is thrown.
 	 * 
 	 * @param iTunes
 	 *            iTunes wrapper instance.
-	 * @param trackIndex
 	 * @param sbTrack
+	 *            the source track to add to iTunes
+	 * @param stats
+	 *            the statistics object that keeps track of the number of
+	 *            converted objects
 	 * @param nRetries
-	 * @param sleepTime
+	 *            number of retries after an "a0040203" error
 	 * 
 	 * @return
 	 * 
 	 * @throws ITunesException
-	 *             after {@link #A0040203_RETRIES} unsuccessfull retries.
+	 *             after {@link #A0040203_RETRIES} unsuccessful retries.
 	 */
-	private int addTrack(ITunes iTunes, int trackIndex, MediaItem sbTrack,
-			int nRetries, int sleepTime) throws ITunesException {
+	private void addTrack(ITunes iTunes, MediaItem sbTrack, Statistics stats,
+			int nRetries) throws ITunesException {
 		Track iTunesTrack = null;
 		try {
+			stats.trackProcessed();
+
 			String absolutePath = new File(new URI(sbTrack.getContentUrl()))
 					.getAbsolutePath();
 			iTunesTrack = iTunes.addFile(absolutePath);
@@ -153,23 +208,6 @@ public class Songbird2itunes {
 			Long skipCount = sbTrack
 					.getPropertyAsLong(Property.PROP_SKIP_COUNT);
 
-			if (sleepTime > 0) {
-				/*
-				 * Sleep before trying to edit, in order to avoid error
-				 * "a0040203".
-				 */
-				try {
-					Thread.sleep(sleepTime);
-				} catch (InterruptedException e) {
-					log.debug("Sleeping for " + sleepTime
-							+ "ms was interrupted.", e);
-					/*
-					 * Logging is enough here. Sleeping is only for improving
-					 * performance. So if it fails, just don't care.
-					 */
-				}
-			}
-
 			// Play count
 			iTunesTrack.setPlayedCount(handleSongbirdLongValue(playCount));
 			// last played
@@ -186,89 +224,72 @@ public class Songbird2itunes {
 				iTunesTrack.setSkippedDate(lastSkipTime);
 			}
 
-			log.info("Added Track #" + trackIndex + ": " + artistName + " - "
-					+ trackName + ": created=" + dateCreate + "; lastPlayed="
-					+ lastPlayTime + "; lastSkipTime=" + lastSkipTime
-					+ "; playCount=" + playCount + "; rating=" + rating
-					+ "; skipCount=" + skipCount + "; path=" + absolutePath);
+			log.info("Added Track #" + stats.getTracksProcessed() + ": "
+					+ artistName + " - " + trackName + ": created="
+					+ dateCreate + "; lastPlayed=" + lastPlayTime
+					+ "; lastSkipTime=" + lastSkipTime + "; playCount="
+					+ playCount + "; rating=" + rating + "; skipCount="
+					+ skipCount + "; path=" + absolutePath);
 		} catch (URISyntaxException e) {
-			// TODO handle
-			throw new RuntimeException(e);
+			log.warn(
+					"Error adding track iTunes, invalid URI: "
+							+ sbTrack.getContentUrl(), e);
+			stats.trackFailed();
 		} catch (IOException e) {
 			log.warn(
 					"File not added by iTunes. Corrupt or missing? Skipping file: "
 							+ sbTrack.getContentUrl(), e);
+			stats.trackFailed();
 		} catch (ComException e) {
-			sleepTime = handlea0040203(iTunes, trackIndex, sbTrack, nRetries,
-					sleepTime, e);
-		} finally {
-			/*
-			 * Dispose all COM objects. This must be done in order to avoid
-			 * iTunes throwing "a0040203" exceptions.
-			 */
-			// TODO this seems not to solve the problem
-			// comCollector.disposeAll();
+			handleA0040203(e, iTunes, stats, sbTrack, nRetries);
 		}
-		return sleepTime;
 	}
 
 	/**
-	 * Handles "a0040203" (not modifiable) errors in iTunes by increasing sleep
-	 * time. By retrying to add the track (
-	 * {@link #addTrack(ITunes, ComObjectCollector, int, MediaItem, int, int)}).
-	 * Also the sleep time is increased.
+	 * Handles "a0040203" (not modifiable) errors in iTunes.
 	 * 
-	 * @param iTunes
-	 * @param trackIndex
-	 * @param sbTrack
-	 * @param nRetries
-	 * @param sleepTime
+	 * This exception might occur right after a track has been added but iTunes
+	 * (for some reasons) won't let us modify it for some more milliseconds.
+	 * Maybe it parses artwork or goes fishing.
+	 * 
+	 * After handling the exception (~ 500ms) modifying the track will most
+	 * likely work, because iTunes seems to have finished what it did before. So
+	 * just keep trying some more times. If the error persists, throw Exception.
+	 * 
 	 * @param e
-	 * 
-	 * @return the new sleep time
+	 *            exception that might be a "a0040203"
+	 * @param iTunes
+	 *            reference to the iTunes wrapper
+	 * @param stats
+	 *            number of the track
+	 * @param sbTrack
+	 *            reference to the songbird track
+	 * @param nRetries
+	 *            amount of retries left
 	 * 
 	 * @throws ITunesException
 	 *             after {@link #A0040203_RETRIES} unsuccessful retries.
 	 * @throws ComException
 	 *             <code>e</code> is re-thrown when not an a0040203
 	 */
-	private int handlea0040203(ITunes iTunes, int trackIndex,
-			MediaItem sbTrack, int nRetries, int sleepTime, ComException e)
+	private void handleA0040203(ComException e, ITunes iTunes,
+			Statistics stats, MediaItem sbTrack, int nRetries)
 			throws ITunesException {
 		if (!e.getMessage().contains("a0040203")) {
-			// Rethrow
+			// Rethrow other exceptions
 			throw e;
 		}
-		/*
-		 * Special case: a0040203 (not modifiable) This exception might occur
-		 * right after a track has been added but iTunes (for some reasons)
-		 * won't let us modify it for some more seconds. Maybe it parses artwork
-		 * or goes fishing.
-		 * 
-		 * After handling the exception (~ 500ms) modifying the track most
-		 * likely work, because iTunes seems to have finished what it did
-		 * before. In order to improve performance, we will adaptively start
-		 * sleeping after each added track. This should improve performance,
-		 * because we won't sleep as long as handling exceptions would take.
-		 */
 		if (nRetries > 0) {
-			if (sleepTime < A0040203_SLEEP_TIME_MAX) {
-				// Increase sleep time after each "a0040203" exception
-				sleepTime += A0040203_SLEEP_TIME_INCREMENT;
-			}
 			log.debug(
 					"Track was added, but error setting attributes. Retrying "
-							+ nRetries + " more times. Sleep time=" + sleepTime
-							+ ". File: " + sbTrack.getContentUrl(), e);
-
-			sleepTime = addTrack(iTunes, trackIndex, sbTrack, nRetries - 1,
-					sleepTime);
+							+ nRetries + " more times. File: "
+							+ sbTrack.getContentUrl(), e);
+			addTrack(iTunes, sbTrack, stats, nRetries - 1);
 		} else {
 			throw new ITunesException("Unable to modify track. Tried "
 					+ A0040203_RETRIES + " times without luck. File: "
 					+ sbTrack.getContentUrl(), e);
 		}
-		return sleepTime;
 	}
 
 	/**
@@ -319,5 +340,63 @@ public class Songbird2itunes {
 	 */
 	protected Rating handleSongbirdRating(Long rating) {
 		return Rating.fromStars(handleSongbirdLongValue(rating));
+	}
+
+	public static class Statistics {
+		private long tracksProcessed = 0;
+		private long tracksFailed = 0;
+		private long playlistTracksProcessed = 0;
+		private long playlistTracksFailed = 0;
+		private long playlistsProcessed = 0;
+		private final long playlistsFailed = 0;
+
+		private void trackProcessed() {
+			tracksProcessed++;
+		}
+
+		private void trackFailed() {
+			tracksFailed++;
+		}
+
+		private void playlistTrackProcessed() {
+			playlistTracksProcessed++;
+		}
+
+		private void playlistTrackFailed() {
+			playlistTracksFailed++;
+		}
+
+		private void playlistProcessed() {
+			playlistsProcessed++;
+		}
+
+		// private void playlistFailed() {
+		// playlistsFailed++;
+		// }
+
+		public long getTracksFailed() {
+			return tracksFailed;
+		}
+
+		public long getTracksProcessed() {
+			return tracksProcessed;
+		}
+
+		protected long getPlaylistTracksProcessed() {
+			return playlistTracksProcessed;
+		}
+
+		protected long getPlaylistTracksFailed() {
+			return playlistTracksFailed;
+		}
+
+		protected long getPlaylistsProcessed() {
+			return playlistsProcessed;
+		}
+
+		protected long getPlaylistsFailed() {
+			return playlistsFailed;
+		}
+
 	}
 }
