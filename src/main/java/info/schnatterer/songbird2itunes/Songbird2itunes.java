@@ -84,22 +84,32 @@ public class Songbird2itunes {
 	private void convertPlaylists(SongbirdDb songbirdDb, ITunes iTunes,
 			Statistics stats) throws SQLException, ITunesException {
 		List<SimpleMediaList> playLists = songbirdDb.getPlayLists(true, true);
+		log.info("Found " + playLists.size() + " playlists");
+
 		for (SimpleMediaList playList : playLists) {
 			stats.playlistProcessed();
-			Playlist iTunesplaylist = iTunes.createPlaylist(playList.getList()
-					.getProperty(Property.PROP_MEDIA_LIST_NAME));
+			String playlistName = playList.getList().getProperty(
+					Property.PROP_MEDIA_LIST_NAME);
+			Playlist iTunesplaylist = iTunes.createPlaylist(playlistName);
+			log.info("Created Playlist #" + stats.getPlaylistsProcessed()
+					+ ": " + playlistName);
 			for (MemberMediaItem member : playList.getMembers()) {
 				try {
 					stats.playlistTrackProcessed();
 					iTunesplaylist.addFile(new File(new URI(member.getMember()
 							.getContentUrl())).getAbsolutePath());
+					log.info("Playlist \""
+							+ playlistName
+							+ "\": Added track "
+							+ member.getMember().getProperty(
+									Property.PROP_ARTIST_NAME)
+							+ " - "
+							+ member.getMember().getProperty(
+									Property.PROP_TRACK_NAME));
 				} catch (URISyntaxException e) {
-					log.warn(
-							"Error adding track to playlist \""
-									+ playList.getList().getProperty(
-											Property.PROP_MEDIA_LIST_NAME)
-									+ "\" , invalid URI: "
-									+ member.getMember().getContentUrl(), e);
+					log.warn("Error adding track to playlist \"" + playlistName
+							+ "\" , invalid URI: "
+							+ member.getMember().getContentUrl(), e);
 					stats.playlistTrackFailed();
 				}
 			}
@@ -222,7 +232,7 @@ public class Songbird2itunes {
 				iTunesTrack.setSkippedDate(lastSkipTime);
 			}
 
-			log.info("Added Track #" + stats.getTracksProcessed() + ": "
+			log.info("Added track #" + stats.getTracksProcessed() + ": "
 					+ artistName + " - " + trackName + ": created="
 					+ dateCreate + "; lastPlayed=" + lastPlayTime
 					+ "; lastSkipTime=" + lastSkipTime + "; playCount="
