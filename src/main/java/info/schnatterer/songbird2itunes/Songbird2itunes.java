@@ -17,6 +17,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.sql.SQLException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 
@@ -34,6 +36,21 @@ public class Songbird2itunes {
 
 	/** SLF4J-Logger. */
 	private final Logger log = LoggerFactory.getLogger(getClass());
+
+	private static ThreadLocal<DateFormat> dateFormatHolderTime = new ThreadLocal<DateFormat>() {
+		@Override
+		protected DateFormat initialValue() {
+			DateFormat dateFormat = new SimpleDateFormat("HH:mm");
+			return dateFormat;
+		}
+	};
+	private static ThreadLocal<DateFormat> dateFormatHolderDate = new ThreadLocal<DateFormat>() {
+		@Override
+		protected DateFormat initialValue() {
+			DateFormat dateFormat = new SimpleDateFormat("dd-MM-yy");
+			return dateFormat;
+		}
+	};
 
 	/**
 	 * Converts all tracks and playlists from a songbird database to iTunes.
@@ -139,38 +156,11 @@ public class Songbird2itunes {
 		log.info("Found " + tracks.size() + " tracks");
 
 		for (MediaItem sbTrack : tracks) {
-			// TODO offer option for setting the date
-			/*
-			 * Changing the dateAdded is not possible via iTunes COM API
-			 * 
-			 * Dirty Hack: Change the computer's system date, add the file and
-			 * This will only work if the process runs as administrator and
-			 * iTunes is either not running or already started as administrator!
-			 */
-			//
-			// // resync the system date
-			// System.out.println("Setting system time");
-			// Process exec = Runtime.getRuntime().exec("cmd /C date " +
-			// "01-01-1990"); // dd-MM-yy
-			// exec.waitFor();
-			// if (exec.exitValue() == 1) {
-			// System.out.println("Warning - Setting system time failed");
-			// }
-			//
-			// // Runtime.getRuntime().exec("cmd /C time " + strTimeToSet); //
-			// hh:mm:ss
-
 			addTrack(iTunes, sbTrack, stats, A0040203_RETRIES);
 		}
 
-		// TODO once we're finished re-sync system clock
-		// System.out.println("Trying to resync system time from time server");
-		// exec = Runtime.getRuntime().exec("cmd /C w32tm /resync /force");
-		// exec.waitFor();
-		// if (exec.exitValue() == 1) {
-		// System.out
-		// .println("Warning - Failed to resync system time from time server");
-		// }
+		log.debug("Trying to resync system time from time server");
+		sysCall("cmd /C w32tm /resync /force");
 	}
 
 	/**
@@ -199,9 +189,8 @@ public class Songbird2itunes {
 
 			String absolutePath = new File(new URI(sbTrack.getContentUrl()))
 					.getAbsolutePath();
-			iTunesTrack = iTunes.addFile(absolutePath);
 
-			Date dateCreate = sbTrack.getDateCreated();
+			Date dateCreated = sbTrack.getDateCreated();
 
 			String trackName = sbTrack.getProperty(Property.PROP_TRACK_NAME);
 			String artistName = sbTrack.getProperty(Property.PROP_ARTIST_NAME);
@@ -215,6 +204,25 @@ public class Songbird2itunes {
 			Long rating = sbTrack.getPropertyAsLong(Property.PROP_RATING);
 			Long skipCount = sbTrack
 					.getPropertyAsLong(Property.PROP_SKIP_COUNT);
+
+			// TODO fail on error here?
+			/*
+			 * Changing the dateAdded is not possible via iTunes COM API
+			 * 
+			 * Dirty Hack: Change the computer's system date, add the file and
+			 * This will only work if the process runs as administrator and
+			 * iTunes is either not running or already started as administrator!
+			 */
+			log.debug("Track #" + stats.getTracksProcessed()
+					+ ": Setting system time to " + dateCreated);
+			// dd-MM-yy
+			sysCall("cmd /C date "
+					+ dateFormatHolderDate.get().format(dateCreated));
+			// hh:mm:ss
+			sysCall("cmd /C time "
+					+ dateFormatHolderTime.get().format(dateCreated));
+
+			iTunesTrack = iTunes.addFile(absolutePath);
 
 			// Play count
 			iTunesTrack.setPlayedCount(handleSongbirdLongValue(playCount));
@@ -234,7 +242,7 @@ public class Songbird2itunes {
 
 			log.info("Added track #" + stats.getTracksProcessed() + ": "
 					+ artistName + " - " + trackName + ": created="
-					+ dateCreate + "; lastPlayed=" + lastPlayTime
+					+ dateCreated + "; lastPlayed=" + lastPlayTime
 					+ "; lastSkipTime=" + lastSkipTime + "; playCount="
 					+ playCount + "; rating=" + rating + "; skipCount="
 					+ skipCount + "; path=" + absolutePath);
@@ -250,6 +258,21 @@ public class Songbird2itunes {
 			stats.trackFailed();
 		} catch (ComException e) {
 			handleA0040203(e, iTunes, stats, sbTrack, nRetries);
+		}
+	}
+
+	private void sysCall(String execCommand) {
+		Process exec;
+		try {
+			exec = Runtime.getRuntime().exec(execCommand);
+			exec.waitFor();
+			if (exec.exitValue() == 1) {
+				log.warn("Setting system call failed: \"" + execCommand + "\"");
+			}
+		} catch (IOException e) {
+			log.warn("Setting system call failed: \"" + execCommand + "\"");
+		} catch (InterruptedException e) {
+			log.warn("Setting system call failed: \"" + execCommand + "\"");
 		}
 	}
 
