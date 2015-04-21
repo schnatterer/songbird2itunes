@@ -29,10 +29,10 @@ import com4j.ComException;
 
 public class Songbird2itunes {
 	/**
-	 * After running into a "a0040203" error - amount of times writing is
-	 * retried before exiting with an error.
+	 * After running into a {@link ComException} - amount of times adding track
+	 * is retried before exiting with an error.
 	 */
-	private static final int A0040203_RETRIES = 50;
+	private static final int COM_EXCEPTION_RETRIES = 50;
 
 	/** SLF4J-Logger. */
 	private final Logger log = LoggerFactory.getLogger(getClass());
@@ -113,6 +113,11 @@ public class Songbird2itunes {
 			for (MemberMediaItem member : playList.getMembers()) {
 				try {
 					stats.playlistTrackProcessed();
+
+					/*
+					 * Don't call addTrack() here because we can assume that all
+					 * tracks have been added by now.
+					 */
 					iTunesplaylist.addFile(new File(new URI(member.getMember()
 							.getContentUrl())).getAbsolutePath());
 					log.info("Playlist \""
@@ -156,7 +161,7 @@ public class Songbird2itunes {
 		log.info("Found " + tracks.size() + " tracks");
 
 		for (MediaItem sbTrack : tracks) {
-			addTrack(iTunes, sbTrack, stats, A0040203_RETRIES);
+			addTrack(iTunes, sbTrack, stats, COM_EXCEPTION_RETRIES);
 		}
 
 		log.debug("Trying to resync system time from time server");
@@ -164,9 +169,9 @@ public class Songbird2itunes {
 	}
 
 	/**
-	 * Add track to iTunes. If an "a0040203" error occurs the method calls
-	 * itself <code>nRetries</code> recursively. If it still fails an exception
-	 * is thrown.
+	 * Add track to iTunes. If an {@link ComException} is throw, the method
+	 * calls itself <code>nRetries</code> recursively. If it still fails an
+	 * exception is re-thrown.
 	 * 
 	 * @param iTunes
 	 *            iTunes wrapper instance.
@@ -176,10 +181,10 @@ public class Songbird2itunes {
 	 *            the statistics object that keeps track of the number of
 	 *            converted objects
 	 * @param nRetries
-	 *            number of retries after an "a0040203" error
+	 *            number of retries after a {@link ComException}
 	 * 
 	 * @throws ITunesException
-	 *             after {@link #A0040203_RETRIES} unsuccessful retries.
+	 *             after {@link #COM_EXCEPTION_RETRIES} unsuccessful retries.
 	 */
 	private void addTrack(ITunes iTunes, MediaItem sbTrack, Statistics stats,
 			int nRetries) throws ITunesException {
@@ -257,7 +262,7 @@ public class Songbird2itunes {
 							+ sbTrack.getContentUrl(), e);
 			stats.trackFailed();
 		} catch (ComException e) {
-			handleA0040203(e, iTunes, stats, sbTrack, nRetries);
+			retryAdding(e, iTunes, stats, sbTrack, nRetries);
 		}
 	}
 
@@ -267,17 +272,25 @@ public class Songbird2itunes {
 			exec = Runtime.getRuntime().exec(execCommand);
 			exec.waitFor();
 			if (exec.exitValue() == 1) {
-				log.warn("Setting system call failed: \"" + execCommand + "\"");
+				log.warn("System call failed (returned 1): \"" + execCommand
+						+ "\"");
 			}
 		} catch (IOException e) {
-			log.warn("Setting system call failed: \"" + execCommand + "\"");
+			log.warn("System call failed with exception: \"" + execCommand
+					+ "\"", e);
 		} catch (InterruptedException e) {
-			log.warn("Setting system call failed: \"" + execCommand + "\"");
+			log.warn("System call failed with exception: \"" + execCommand
+					+ "\"", e);
 		}
 	}
 
 	/**
-	 * Handles "a0040203" (not modifiable) errors in iTunes.
+	 * Retries calling {@link #addTrack(ITunes, MediaItem, Statistics, int)}
+	 * after a {@link ComException}. This will be done for
+	 * {@link #COM_EXCEPTION_RETRIES} times. Then the application exits in
+	 * error. Why? iTunes seems to return errors and reconsiders on retry.
+	 * 
+	 * An example is the "a0040203" (not modifiable) error in iTunes.
 	 * 
 	 * This exception might occur right after a track has been added but iTunes
 	 * (for some reasons) won't let us modify it for some more milliseconds.
@@ -299,17 +312,10 @@ public class Songbird2itunes {
 	 *            amount of retries left
 	 * 
 	 * @throws ITunesException
-	 *             after {@link #A0040203_RETRIES} unsuccessful retries.
-	 * @throws ComException
-	 *             <code>e</code> is re-thrown when not an a0040203
+	 *             after {@link #COM_EXCEPTION_RETRIES} unsuccessful retries.
 	 */
-	private void handleA0040203(ComException e, ITunes iTunes,
-			Statistics stats, MediaItem sbTrack, int nRetries)
-			throws ITunesException {
-		if (!e.getMessage().contains("a0040203")) {
-			// Rethrow other exceptions
-			throw e;
-		}
+	private void retryAdding(ComException e, ITunes iTunes, Statistics stats,
+			MediaItem sbTrack, int nRetries) throws ITunesException {
 		if (nRetries > 0) {
 			log.debug(
 					"Track was added, but error setting attributes. Retrying "
@@ -318,7 +324,7 @@ public class Songbird2itunes {
 			addTrack(iTunes, sbTrack, stats, nRetries - 1);
 		} else {
 			throw new ITunesException("Unable to modify track. Tried "
-					+ A0040203_RETRIES + " times without luck. File: "
+					+ COM_EXCEPTION_RETRIES + " times without luck. File: "
 					+ sbTrack.getContentUrl(), e);
 		}
 	}
