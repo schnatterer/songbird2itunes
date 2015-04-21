@@ -1,9 +1,6 @@
 package info.schnatterer.songbird2itunes;
 
-import info.schnatterer.itunes4j.ITunesException;
 import info.schnatterer.songbird2itunes.Songbird2itunes.Statistics;
-
-import java.sql.SQLException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,11 +12,11 @@ public class Songbird2itunesApp {
 	/** SLF4J-Logger. */
 	private final Logger log = LoggerFactory.getLogger(getClass());
 
-	public static void main(String[] args) throws SQLException, ITunesException {
-		new Songbird2itunesApp().run(args);
+	public static void main(String[] args) {
+		System.exit(new Songbird2itunesApp().run(args));
 	}
 
-	private void run(String[] args) {
+	private int run(String[] args) {
 		// TODO implement a CLI here
 		try {
 			Statistics stats = new Songbird2itunes().convert(args[0]);
@@ -34,12 +31,12 @@ public class Songbird2itunesApp {
 					+ " tracks (playlist members) of which "
 					+ stats.getPlaylistTracksFailed() + " failed.");
 			log.info("See log file for more info");
-		} catch (SQLException e) {
-			// TODO handle
-			throw new RuntimeException(e);
-		} catch (ITunesException e) {
-			// TODO handle
-			throw new RuntimeException(e);
+			return 0;
+		} catch (Exception e) { // Outmost "catch all" block for logging any
+								// exception exiting application with error
+			log.error("Conversion failed with error \"" + e.getMessage()
+					+ "\". Please see log file.", e);
+			return 1;
 		}
 
 	}
