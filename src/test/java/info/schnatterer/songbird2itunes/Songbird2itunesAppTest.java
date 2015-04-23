@@ -7,7 +7,7 @@ import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import info.schnatterer.itunes4j.ITunesException;
+import info.schnatterer.itunes4j.exception.ITunesException;
 import info.schnatterer.songbird2itunes.Songbird2itunes.Statistics;
 
 import java.io.ByteArrayInputStream;

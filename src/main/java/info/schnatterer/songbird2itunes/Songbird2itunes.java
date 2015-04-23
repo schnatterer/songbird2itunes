@@ -1,10 +1,12 @@
 package info.schnatterer.songbird2itunes;
 
 import info.schnatterer.itunes4j.ITunes;
-import info.schnatterer.itunes4j.ITunesException;
 import info.schnatterer.itunes4j.entity.Playlist;
 import info.schnatterer.itunes4j.entity.Rating;
 import info.schnatterer.itunes4j.entity.Track;
+import info.schnatterer.itunes4j.exception.ITunesException;
+import info.schnatterer.itunes4j.exception.NotModifiableException;
+import info.schnatterer.itunes4j.exception.WrongParameterException;
 import info.schnatterer.java.lang.ELong;
 import info.schnatterer.songbirddbapi4.SongbirdDb;
 import info.schnatterer.songbirddbapi4j.domain.MediaItem;
@@ -281,7 +283,14 @@ public class Songbird2itunes {
 					"File not added by iTunes. Corrupt or missing? Skipping file: "
 							+ sbTrack.getContentUrl(), e);
 			stats.trackFailed();
-		} catch (ComException e) {
+		} catch (WrongParameterException e) {
+			log.warn(
+					"File not added by iTunes. Unsupported type?"
+							+ sbTrack.getContentUrl(), e);
+			stats.trackFailed();
+			// TODO try to convert?
+			throw e;
+		} catch (NotModifiableException e) {
 			retryAdding(e, iTunes, stats, sbTrack, exceptionRetries,
 					setSystemDate);
 		}
@@ -307,11 +316,12 @@ public class Songbird2itunes {
 
 	/**
 	 * Retries calling {@link #addTrack(ITunes, MediaItem, Statistics, int)}
-	 * after a {@link ComException}. This will be done for
-	 * {@link #COM_EXCEPTION_RETRIES} times. Then the application exits in
-	 * error. Why? iTunes seems to return errors and reconsiders on retry.
+	 * after a {@link ITunesException}. This will be done for
+	 * <code>nRetries</code> times. Then the application exits in error. Why?
+	 * iTunes seems to return errors and reconsiders on retry.
 	 * 
-	 * An example is the "a0040203" (not modifiable) error in iTunes.
+	 * An example is the "a0040203" ({@link NotModifiableException}) error in
+	 * iTunes.
 	 * 
 	 * This exception might occur right after a track has been added but iTunes
 	 * (for some reasons) won't let us modify it for some more milliseconds.
@@ -339,9 +349,9 @@ public class Songbird2itunes {
 	 * @throws ITunesException
 	 *             after all retries have been used.
 	 */
-	private void retryAdding(ComException e, ITunes iTunes, Statistics stats,
-			MediaItem sbTrack, int nRetries, boolean setSystemDate)
-			throws ITunesException {
+	private void retryAdding(ITunesException e, ITunes iTunes,
+			Statistics stats, MediaItem sbTrack, int nRetries,
+			boolean setSystemDate) throws ITunesException {
 		if (nRetries > 0) {
 			log.debug(
 					"Track was added, but error setting attributes. Retrying "
@@ -350,7 +360,7 @@ public class Songbird2itunes {
 			addTrack(iTunes, sbTrack, stats, nRetries - 1, setSystemDate);
 		} else {
 			throw new ITunesException(
-					"Unable to modify track. Tried multiple times without luck. File: "
+					"Unable to add track. Tried multiple times without luck. File: "
 							+ sbTrack.getContentUrl(), e);
 		}
 	}
