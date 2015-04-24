@@ -318,9 +318,9 @@ public class Songbird2itunes {
 
 	/**
 	 * Retries calling {@link #addTrack(ITunes, MediaItem, Statistics, int)}
-	 * after a {@link ITunesException}. This will be done for
-	 * <code>nRetries</code> times. Then the application exits in error. Why?
-	 * iTunes seems to return errors and reconsiders on retry.
+	 * after a {@link ITunesException}. This is done for <code>nRetries</code>
+	 * times, before giving up and logging a warning. Why? iTunes seems to
+	 * return errors and reconsiders on retry.
 	 * 
 	 * An example is the "a0040203" ({@link NotModifiableException}) error in
 	 * iTunes.
@@ -349,7 +349,8 @@ public class Songbird2itunes {
 	 *            track
 	 * 
 	 * @throws ITunesException
-	 *             after all retries have been used.
+	 *             if thrown by
+	 *             {@link #addTrack(ITunes, MediaItem, Statistics, int, boolean)}
 	 */
 	private void retryAdding(ITunesException e, ITunes iTunes,
 			Statistics stats, MediaItem sbTrack, int nRetries,
@@ -361,9 +362,10 @@ public class Songbird2itunes {
 							+ sbTrack.getContentUrl(), e);
 			addTrack(iTunes, sbTrack, stats, nRetries - 1, setSystemDate);
 		} else {
-			throw new ITunesException(
-					"Unable to add track. Tried multiple times without luck. File: "
+			log.warn(
+					"Unable set track attributes, tried multiple times without luck. Skipping. You might manually add  File: "
 							+ sbTrack.getContentUrl(), e);
+			stats.trackFailed();
 		}
 	}
 
