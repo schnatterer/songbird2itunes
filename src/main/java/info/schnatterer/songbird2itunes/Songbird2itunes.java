@@ -172,13 +172,16 @@ public class Songbird2itunes {
 		List<MediaItem> tracks = songbirdDb.getAllTracks();
 		log.info("Found " + tracks.size() + " tracks");
 
-		for (MediaItem sbTrack : tracks) {
-			addTrack(iTunes, sbTrack, stats, exceptionRetries, setSystemDate);
-		}
-
-		if (setSystemDate) {
-			log.debug("Trying to resync system time from time server");
-			sysCall("cmd /C w32tm /resync /force");
+		try {
+			for (MediaItem sbTrack : tracks) {
+				addTrack(iTunes, sbTrack, stats, exceptionRetries,
+						setSystemDate);
+			}
+		} finally {
+			if (setSystemDate) {
+				log.debug("Trying to resync system time from time server");
+				sysCall("cmd /C w32tm /resync /force");
+			}
 		}
 	}
 
