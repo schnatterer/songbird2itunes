@@ -23,6 +23,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -115,29 +116,28 @@ public class Songbird2itunes {
 			log.info("Created Playlist #" + stats.getPlaylistsProcessed()
 					+ ": " + playlistName);
 			for (MemberMediaItem member : playList.getMembers()) {
-				try {
-					stats.playlistTrackProcessed();
+				stats.playlistTrackProcessed();
 
-					/*
-					 * Don't call addTrack() here because we can assume that all
-					 * tracks have been added by now.
-					 */
-					iTunesplaylist.addFile(new File(new URI(member.getMember()
-							.getContentUrl())).getAbsolutePath());
-					log.info("Playlist \""
-							+ playlistName
-							+ "\": Added track "
-							+ member.getMember().getProperty(
-									Property.PROP_ARTIST_NAME)
-							+ " - "
-							+ member.getMember().getProperty(
-									Property.PROP_TRACK_NAME));
-				} catch (URISyntaxException e) {
-					log.warn("Error adding track to playlist \"" + playlistName
-							+ "\" , invalid URI: "
-							+ member.getMember().getContentUrl(), e);
+				/*
+				 * Don't call addTrack() here because we can assume that all
+				 * tracks have been added by now.
+				 */
+
+				Optional<String> absolutePath = toAbsolutePath(member
+						.getMember());
+				if (!absolutePath.isPresent()) {
 					stats.playlistTrackFailed();
+					return;
 				}
+				iTunesplaylist.addFile(absolutePath.get());
+				log.info("Playlist \""
+						+ playlistName
+						+ "\": Added track "
+						+ member.getMember().getProperty(
+								Property.PROP_ARTIST_NAME)
+						+ " - "
+						+ member.getMember().getProperty(
+								Property.PROP_TRACK_NAME));
 			}
 		}
 	}
@@ -214,8 +214,12 @@ public class Songbird2itunes {
 		try {
 			stats.trackProcessed();
 
-			String absolutePath = new File(new URI(sbTrack.getContentUrl()))
-					.getAbsolutePath();
+			// Get absolute path first (as this might fail)
+			Optional<String> absolutePath = toAbsolutePath(sbTrack);
+			if (!absolutePath.isPresent()) {
+				stats.trackFailed();
+				return;
+			}
 
 			Date dateCreated = sbTrack.getDateCreated();
 
@@ -252,7 +256,7 @@ public class Songbird2itunes {
 						+ dateFormatHolderTime.get().format(dateCreated));
 			}
 
-			iTunesTrack = iTunes.addFile(absolutePath);
+			iTunesTrack = iTunes.addFile(absolutePath.get());
 
 			// Play count
 			iTunesTrack.setPlayedCount(handleSongbirdLongValue(playCount));
@@ -275,12 +279,7 @@ public class Songbird2itunes {
 					+ dateCreated + "; lastPlayed=" + lastPlayTime
 					+ "; lastSkipTime=" + lastSkipTime + "; playCount="
 					+ playCount + "; rating=" + rating + "; skipCount="
-					+ skipCount + "; path=" + absolutePath);
-		} catch (URISyntaxException e) {
-			log.warn(
-					"Error adding track iTunes, invalid URI: "
-							+ sbTrack.getContentUrl(), e);
-			stats.trackFailed();
+					+ skipCount + "; path=" + absolutePath.get());
 		} catch (IOException e) {
 			log.warn(
 					"File not added by iTunes. Corrupt or missing? Skipping file: "
@@ -295,6 +294,35 @@ public class Songbird2itunes {
 		} catch (NotModifiableException e) {
 			retryAdding(e, iTunes, stats, sbTrack, exceptionRetries,
 					setSystemDate);
+		}
+	}
+
+	/**
+	 * Converts a songbird track to an absolute URL in the file system. If not a
+	 * valid file an appropriate warning is logged.
+	 * 
+	 * @param sbTrack
+	 *            the songbird track whose absolute path is required
+	 * 
+	 * @return the absolute path of the track or an empty result if invalid URI
+	 *         or not a file URI.
+	 * 
+	 */
+	private Optional<String> toAbsolutePath(MediaItem sbTrack) {
+		URI uri;
+		try {
+			uri = new URI(sbTrack.getContentUrl());
+			if (!"file".equals(uri.getScheme())) {
+				log.warn("Songbird track does not refer to a file (URI scheme is not \"file\"). Skipping track: "
+						+ sbTrack.getContentUrl());
+				return Optional.empty();
+			}
+			return Optional.of(new File(uri).getAbsolutePath());
+		} catch (URISyntaxException e) {
+			log.warn(
+					"Error adding track iTunes, invalid URI: "
+							+ sbTrack.getContentUrl(), e);
+			return Optional.empty();
 		}
 	}
 
