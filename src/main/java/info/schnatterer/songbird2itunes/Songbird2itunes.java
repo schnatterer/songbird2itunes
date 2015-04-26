@@ -309,19 +309,20 @@ public class Songbird2itunes {
 	 * 
 	 */
 	private Optional<String> toAbsolutePath(MediaItem sbTrack) {
-		URI uri;
+		URI uri = null;
 		try {
 			uri = new URI(sbTrack.getContentUrl());
-			if (!"file".equals(uri.getScheme())) {
-				log.warn("Songbird track does not refer to a file (URI scheme is not \"file\"). Skipping track: "
-						+ sbTrack.getContentUrl());
-				return Optional.empty();
-			}
 			return Optional.of(new File(uri).getAbsolutePath());
 		} catch (URISyntaxException e) {
 			log.warn(
 					"Error adding track iTunes, invalid URI: "
 							+ sbTrack.getContentUrl(), e);
+			return Optional.empty();
+		} catch (IllegalArgumentException e) {
+			log.warn("Songbird track URI cannot is not a valid path within the file system. Error: "
+					+ e.getMessage()
+					+ ". Skipping track: "
+					+ sbTrack.getContentUrl());
 			return Optional.empty();
 		}
 	}
