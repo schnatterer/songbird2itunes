@@ -89,10 +89,11 @@ public class Songbird2itunesApp {
 		Scanner scanner = null;
 		try {
 			scanner = new Scanner(createSystemIn());
-			log.info("You used the option for using the workaround to set the date added in iTunes. As setting the date added in iTunes is not possible, this workaround sets the system clock to the desired date and then adds the song to iTunes. Make sure to");
+			log.info("You used the option for using the workaround to set the \"date added\" in iTunes. As iTunes does not allow setting the \"date added\", this workaround sets the system clock to the desired date and then adds the song to iTunes. Make sure to");
 			log.info(" - start songbird2itunes with administration rights,");
 			log.info(" - either close iTunes or start iTunes as administrator, ");
 			log.info(" - deactivate the automatic sync of windows with a time server for the progress of conversion to iTunes.");
+			log.info(" - better not use your computer while the migration is running, because the system date might be invalid.");
 			log.info("If you REALLY want to do this, type \"yes\". If not just press enter and restart without this option!");
 			if ("yes".equals(scanner.nextLine())) {
 				return true;
