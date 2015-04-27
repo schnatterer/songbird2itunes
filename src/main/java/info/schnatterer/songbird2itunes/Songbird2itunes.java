@@ -127,7 +127,7 @@ public class Songbird2itunes {
 						.getMember());
 				if (!absolutePath.isPresent()) {
 					stats.playlistTrackFailed();
-					return;
+					continue;
 				}
 				iTunesplaylist.addFile(absolutePath.get());
 				log.info("Playlist \""
