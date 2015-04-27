@@ -71,19 +71,15 @@ public class Songbird2itunes {
 	 */
 	public Statistics convert(String songbirdDbFile, int exceptionRetries,
 			boolean setSystemDate) throws SQLException, ITunesException {
-		File file = new File(songbirdDbFile);
-
 		// Create database wrapper instance
-		SongbirdDb songbirdDb = createSongbirdDb(file);
+		SongbirdDb songbirdDb = createSongbirdDb(new File(songbirdDbFile));
 		// Create reference to iTunes
 		ITunes iTunes = createItunes();
 
-		Statistics stats = new Statistics();
-
-		convertTracks(songbirdDb, iTunes, stats, exceptionRetries,
+		Statistics stats = convertTracks(songbirdDb, iTunes, exceptionRetries,
 				setSystemDate);
 
-		convertPlaylists(songbirdDb, iTunes, stats);
+		stats.merge(convertPlaylists(songbirdDb, iTunes));
 		return stats;
 	}
 
@@ -94,17 +90,15 @@ public class Songbird2itunes {
 	 *            songbird database wrapper
 	 * @param iTunes
 	 *            iTunes wrapper
-	 * @param stats
-	 *            the statistics object that keeps track of the number of
-	 *            converted objects
-	 * 
+	 * @return
 	 * @throws SQLException
 	 *             errors when querying source database
 	 * @throws ITunesException
 	 *             errors when writing to target iTunes
 	 */
-	private void convertPlaylists(SongbirdDb songbirdDb, ITunes iTunes,
-			Statistics stats) throws SQLException, ITunesException {
+	private Statistics convertPlaylists(SongbirdDb songbirdDb, ITunes iTunes)
+			throws SQLException, ITunesException {
+		Statistics stats = new Statistics();
 		List<SimpleMediaList> playLists = songbirdDb.getPlayLists(true, true);
 		log.info("Found " + playLists.size() + " playlists");
 
@@ -140,6 +134,7 @@ public class Songbird2itunes {
 								Property.PROP_TRACK_NAME));
 			}
 		}
+		return stats;
 	}
 
 	/**
@@ -149,9 +144,6 @@ public class Songbird2itunes {
 	 *            songbird database wrapper
 	 * @param iTunes
 	 *            iTunes wrapper
-	 * @param stats
-	 *            the statistics object that keeps track of the number of
-	 *            converted objects
 	 * @param exceptionRetries
 	 *            After running into a {@link ComException} - amount of times
 	 *            adding track is retried before exiting with an error.
@@ -159,15 +151,18 @@ public class Songbird2itunes {
 	 *            use workaround - try to set the date added in iTunes by
 	 *            setting the system date to the date added and then adding the
 	 *            track
+	 * @return
 	 * 
 	 * @throws SQLException
 	 *             errors when querying source database
 	 * @throws ITunesException
 	 *             errors when writing to target iTunes
 	 */
-	private void convertTracks(SongbirdDb songbirdDb, ITunes iTunes,
-			Statistics stats, int exceptionRetries, boolean setSystemDate)
-			throws SQLException, ITunesException {
+	private Statistics convertTracks(SongbirdDb songbirdDb, ITunes iTunes,
+			int exceptionRetries, boolean setSystemDate) throws SQLException,
+			ITunesException {
+		Statistics stats = new Statistics();
+
 		// Query all tracks from songbird
 		List<MediaItem> tracks = songbirdDb.getAllTracks();
 		log.info("Found " + tracks.size() + " tracks");
@@ -183,6 +178,7 @@ public class Songbird2itunes {
 				sysCall("cmd /C w32tm /resync /force");
 			}
 		}
+		return stats;
 	}
 
 	/**
@@ -454,7 +450,7 @@ public class Songbird2itunes {
 		private long playlistTracksProcessed = 0;
 		private long playlistTracksFailed = 0;
 		private long playlistsProcessed = 0;
-		private final long playlistsFailed = 0;
+		private long playlistsFailed = 0;
 
 		private void trackProcessed() {
 			tracksProcessed++;
@@ -488,21 +484,29 @@ public class Songbird2itunes {
 			return tracksProcessed;
 		}
 
-		protected long getPlaylistTracksProcessed() {
+		public long getPlaylistTracksProcessed() {
 			return playlistTracksProcessed;
 		}
 
-		protected long getPlaylistTracksFailed() {
+		public long getPlaylistTracksFailed() {
 			return playlistTracksFailed;
 		}
 
-		protected long getPlaylistsProcessed() {
+		public long getPlaylistsProcessed() {
 			return playlistsProcessed;
 		}
 
-		protected long getPlaylistsFailed() {
+		public long getPlaylistsFailed() {
 			return playlistsFailed;
 		}
 
+		private void merge(Statistics stats) {
+			this.tracksProcessed = stats.tracksProcessed;
+			this.tracksFailed = stats.tracksFailed;
+			this.playlistTracksProcessed = stats.playlistTracksProcessed;
+			this.playlistTracksFailed = stats.playlistTracksFailed;
+			this.playlistsProcessed = stats.playlistsProcessed;
+			this.playlistsFailed = stats.playlistsFailed;
+		}
 	}
 }
