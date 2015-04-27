@@ -51,12 +51,12 @@ public class Songbird2itunesAppTest {
 	 */
 	@Test
 	public void allParams() throws SQLException, ITunesException {
-		when(s2iMock.convert(anyString(), anyInt(), anyBoolean())).thenReturn(
+		when(s2iMock.migrate(anyString(), anyInt(), anyBoolean())).thenReturn(
 				new Statistics());
 		assertEquals("Running with all parameters returned unexpected result",
 				0, classUnderTest.run(Commandline
 						.translateCommandline("-r 23 -d path")));
-		verify(s2iMock).convert("path", 23, Boolean.TRUE);
+		verify(s2iMock).migrate("path", 23, Boolean.TRUE);
 	}
 
 	/**
@@ -82,7 +82,7 @@ public class Songbird2itunesAppTest {
 	 */
 	@Test
 	public void errorConversion() throws SQLException, ITunesException {
-		when(s2iMock.convert(anyString(), anyInt(), anyBoolean())).thenThrow(
+		when(s2iMock.migrate(anyString(), anyInt(), anyBoolean())).thenThrow(
 				new RuntimeException("Mocked exception"));
 		assertEquals("Error during conversoin returned unexpected result",
 				Songbird2itunesApp.EXIT_ERROR_CONVERSION,
@@ -99,7 +99,7 @@ public class Songbird2itunesAppTest {
 	 */
 	@Test
 	public void notConfirmedWorkaround() throws SQLException, ITunesException {
-		when(s2iMock.convert(anyString(), anyInt(), anyBoolean())).thenReturn(
+		when(s2iMock.migrate(anyString(), anyInt(), anyBoolean())).thenReturn(
 				new Statistics());
 		Songbird2itunesApp classUnderTestNoConfirmation = new Songbird2itunesApp4Test(
 				"no confirm");
@@ -107,7 +107,7 @@ public class Songbird2itunesAppTest {
 				"Denying confirmation for using the workaround returned unexpected result",
 				Songbird2itunesApp.EXIT_SUCCESS, classUnderTestNoConfirmation
 						.run(Commandline.translateCommandline("-r 23 -d path")));
-		verify(s2iMock, never()).convert(anyString(), anyInt(), anyBoolean());
+		verify(s2iMock, never()).migrate(anyString(), anyInt(), anyBoolean());
 	}
 
 	private class Songbird2itunesApp4Test extends Songbird2itunesApp {

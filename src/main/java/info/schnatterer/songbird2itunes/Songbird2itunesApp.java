@@ -42,7 +42,7 @@ public class Songbird2itunesApp {
 					return EXIT_SUCCESS;
 				}
 				// Successfully read command line params. Do conversion
-				printStats(createSongbird2itunes().convert(cliParams.getPath(),
+				printStats(createSongbird2itunes().migrate(cliParams.getPath(),
 						cliParams.getRetries(),
 						cliParams.isDateAddedWorkaround()));
 				return EXIT_SUCCESS;

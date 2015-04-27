@@ -32,7 +32,7 @@ public class Songbird2itunesCli {
 	private static final String DESC_DB = "Path to songbird database file";
 
 	private static final String DESC_RETR = "(optional) Number of retries after an iTunes error";
-	private static final String DESC_DATE_ADDED = "(optional) workaround for converting the date added to iTunes. NOTE: This requires admin rights and set your system date before adding each track. Use with extreme care.";
+	private static final String DESC_DATE_ADDED = "(optional) workaround for migrating the date added to iTunes. NOTE: This requires admin rights and set your system date before adding each track. Use with extreme care.";
 	private static final String DESC_HELP = "(optional) Show this message";
 
 	/**

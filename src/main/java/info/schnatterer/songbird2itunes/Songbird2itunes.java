@@ -50,7 +50,7 @@ public class Songbird2itunes {
 	};
 
 	/**
-	 * Converts all tracks and playlists from a songbird database to iTunes.
+	 * Migrate all tracks and playlists from a songbird database to iTunes.
 	 * 
 	 * @param songbirdDbFile
 	 *            absolute File path to songbird database
@@ -62,29 +62,29 @@ public class Songbird2itunes {
 	 *            setting the system date to the date added and then adding the
 	 *            track
 	 * 
-	 * @return statistics that keeps track of the number of converted objects
+	 * @return statistics that keeps track of the number of migrated objects
 	 * 
 	 * @throws SQLException
 	 *             errors when querying source database
 	 * @throws ITunesException
 	 *             errors when writing to target iTunes
 	 */
-	public Statistics convert(String songbirdDbFile, int exceptionRetries,
+	public Statistics migrate(String songbirdDbFile, int exceptionRetries,
 			boolean setSystemDate) throws SQLException, ITunesException {
 		// Create database wrapper instance
 		SongbirdDb songbirdDb = createSongbirdDb(new File(songbirdDbFile));
 		// Create reference to iTunes
 		ITunes iTunes = createItunes();
 
-		Statistics stats = convertTracks(songbirdDb, iTunes, exceptionRetries,
+		Statistics stats = migrateTracks(songbirdDb, iTunes, exceptionRetries,
 				setSystemDate);
 
-		stats.merge(convertPlaylists(songbirdDb, iTunes));
+		stats.merge(migratePlaylists(songbirdDb, iTunes));
 		return stats;
 	}
 
 	/**
-	 * Converts playlists from songbird2iTunes.
+	 * Migrates playlists from songbird2iTunes.
 	 * 
 	 * @param songbirdDb
 	 *            songbird database wrapper
@@ -96,7 +96,7 @@ public class Songbird2itunes {
 	 * @throws ITunesException
 	 *             errors when writing to target iTunes
 	 */
-	private Statistics convertPlaylists(SongbirdDb songbirdDb, ITunes iTunes)
+	private Statistics migratePlaylists(SongbirdDb songbirdDb, ITunes iTunes)
 			throws SQLException, ITunesException {
 		Statistics stats = new Statistics();
 		List<SimpleMediaList> playLists = songbirdDb.getPlayLists(true, true);
@@ -138,7 +138,7 @@ public class Songbird2itunes {
 	}
 
 	/**
-	 * Converts tracks from songbird2iTunes.
+	 * Migrates tracks from songbird2iTunes.
 	 * 
 	 * @param songbirdDb
 	 *            songbird database wrapper
@@ -158,7 +158,7 @@ public class Songbird2itunes {
 	 * @throws ITunesException
 	 *             errors when writing to target iTunes
 	 */
-	private Statistics convertTracks(SongbirdDb songbirdDb, ITunes iTunes,
+	private Statistics migrateTracks(SongbirdDb songbirdDb, ITunes iTunes,
 			int exceptionRetries, boolean setSystemDate) throws SQLException,
 			ITunesException {
 		Statistics stats = new Statistics();
@@ -192,7 +192,7 @@ public class Songbird2itunes {
 	 *            the source track to add to iTunes
 	 * @param stats
 	 *            the statistics object that keeps track of the number of
-	 *            converted objects
+	 *            migrated objects
 	 * @param exceptionRetries
 	 *            After running into a {@link ComException} - amount of times
 	 *            adding track is retried before exiting with an error.
@@ -255,16 +255,16 @@ public class Songbird2itunes {
 			iTunesTrack = iTunes.addFile(absolutePath.get());
 
 			// Play count
-			iTunesTrack.setPlayedCount(handleSongbirdLongValue(playCount));
+			iTunesTrack.setPlayedCount(convertSongbirdLongValue(playCount));
 			// last played
 			if (lastPlayTime != null) {
 				iTunesTrack.setPlayedDate(lastPlayTime);
 			}
 
-			iTunesTrack.setRating(handleSongbirdRating(rating));
+			iTunesTrack.setRating(convertSongbirdRating(rating));
 
 			// Skip count
-			iTunesTrack.setSkippedCount(handleSongbirdLongValue(skipCount));
+			iTunesTrack.setSkippedCount(convertSongbirdLongValue(skipCount));
 			// last skipped
 			if (lastSkipTime != null) {
 				iTunesTrack.setSkippedDate(lastSkipTime);
@@ -294,7 +294,7 @@ public class Songbird2itunes {
 	}
 
 	/**
-	 * Converts a songbird track to an absolute URL in the file system. If not a
+	 * Migrates a songbird track to an absolute URL in the file system. If not a
 	 * valid file an appropriate warning is logged.
 	 * 
 	 * @param sbTrack
@@ -424,7 +424,7 @@ public class Songbird2itunes {
 	 * @return a primitive (non-<code>null</code>) instance of
 	 *         <code>longValue</code>
 	 */
-	protected int handleSongbirdLongValue(Long longValue) {
+	protected int convertSongbirdLongValue(Long longValue) {
 		if (longValue == null) {
 			return 0;
 		}
@@ -440,8 +440,8 @@ public class Songbird2itunes {
 	 *            the rating read from songbird
 	 * @return an iTunes {@link Rating} object
 	 */
-	protected Rating handleSongbirdRating(Long rating) {
-		return Rating.fromStars(handleSongbirdLongValue(rating));
+	protected Rating convertSongbirdRating(Long rating) {
+		return Rating.fromStars(convertSongbirdLongValue(rating));
 	}
 
 	public static class Statistics {
