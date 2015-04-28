@@ -8,7 +8,7 @@ import info.schnatterer.itunes4j.exception.ITunesException;
 import info.schnatterer.itunes4j.exception.NotModifiableException;
 import info.schnatterer.itunes4j.exception.WrongParameterException;
 import info.schnatterer.java.lang.ELong;
-import info.schnatterer.songbirddbapi4.SongbirdDb;
+import info.schnatterer.songbirddbapi4j.SongbirdDb;
 import info.schnatterer.songbirddbapi4j.domain.MediaItem;
 import info.schnatterer.songbirddbapi4j.domain.MemberMediaItem;
 import info.schnatterer.songbirddbapi4j.domain.Property;
