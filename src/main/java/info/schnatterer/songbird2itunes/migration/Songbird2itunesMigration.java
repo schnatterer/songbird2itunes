@@ -1,4 +1,4 @@
-package info.schnatterer.songbird2itunes;
+package info.schnatterer.songbird2itunes.migration;
 
 import info.schnatterer.itunes4j.ITunes;
 import info.schnatterer.itunes4j.entity.Playlist;
@@ -28,7 +28,7 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class Songbird2itunes {
+public class Songbird2itunesMigration {
 	/** SLF4J-Logger. */
 	private final Logger log = LoggerFactory.getLogger(getClass());
 

@@ -1,6 +1,7 @@
 package info.schnatterer.songbird2itunes;
 
-import info.schnatterer.songbird2itunes.Songbird2itunes.Statistics;
+import info.schnatterer.songbird2itunes.migration.Songbird2itunesMigration;
+import info.schnatterer.songbird2itunes.migration.Songbird2itunesMigration.Statistics;
 
 import java.io.InputStream;
 import java.util.Scanner;
@@ -114,9 +115,9 @@ public class Songbird2itunesApp {
 	}
 
 	/**
-	 * @return a new instance of {@link Songbird2itunes}. Useful for testing.
+	 * @return a new instance of {@link Songbird2itunesMigration}. Useful for testing.
 	 */
-	Songbird2itunes createSongbird2itunes() {
-		return new Songbird2itunes();
+	Songbird2itunesMigration createSongbird2itunes() {
+		return new Songbird2itunesMigration();
 	}
 }

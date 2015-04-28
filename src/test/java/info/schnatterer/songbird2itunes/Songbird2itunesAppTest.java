@@ -8,7 +8,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import info.schnatterer.itunes4j.exception.ITunesException;
-import info.schnatterer.songbird2itunes.Songbird2itunes.Statistics;
+import info.schnatterer.songbird2itunes.migration.Songbird2itunesMigration;
+import info.schnatterer.songbird2itunes.migration.Songbird2itunesMigration.Statistics;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -27,7 +28,7 @@ public class Songbird2itunesAppTest {
 	public MockitoRule rule = MockitoJUnit.rule();
 
 	@Mock
-	private Songbird2itunes s2iMock;
+	private Songbird2itunesMigration s2iMock;
 
 	private final Songbird2itunesApp classUnderTest = new Songbird2itunesApp4Test(
 			"yes");
@@ -118,7 +119,7 @@ public class Songbird2itunesAppTest {
 		}
 
 		@Override
-		Songbird2itunes createSongbird2itunes() {
+		Songbird2itunesMigration createSongbird2itunes() {
 			return s2iMock;
 		}
 
