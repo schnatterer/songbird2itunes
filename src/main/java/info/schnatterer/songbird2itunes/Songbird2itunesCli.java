@@ -55,6 +55,10 @@ public class Songbird2itunesCli {
 	 * something went wrong
 	 * 
 	 * @param argv
+	 *            command line arguments to read
+	 * @param programName
+	 *            program name displayed in the usage
+	 * 
 	 * @return an instance of {@link Songbird2itunesCli} when everything went
 	 *         ok, or <code>null</code> if "-- help" was called.
 	 * 
@@ -62,11 +66,11 @@ public class Songbird2itunesCli {
 	 *             when something went wrong
 	 */
 	public static Songbird2itunesCli readParams(String[] argv,
-			String programmName) throws ParameterException {
+			String programName) throws ParameterException {
 		Songbird2itunesCli cliParams = new Songbird2itunesCli();
 		try {
 			cliParams.commander = new JCommander(cliParams);
-			cliParams.commander.setProgramName(programmName);
+			cliParams.commander.setProgramName(programName);
 			cliParams.commander.parse(argv);
 		} catch (ParameterException e) {
 			// Print err

@@ -26,6 +26,12 @@ public class ELong {
 
 	private final java.lang.Long wrappedLong;
 
+	/**
+	 * Creates a new extended long from a standard java boxed long.
+	 * 
+	 * @param wrappedLong
+	 *            the java long instance to wrap
+	 */
 	public ELong(java.lang.Long wrappedLong) {
 		this.wrappedLong = wrappedLong;
 	}
@@ -34,8 +40,6 @@ public class ELong {
 	 * Safely casts a {@link ELong} to an {@link Integer}. If {@link ELong}
 	 * cannot fit into an {@link Integer} an exception is thrown.
 	 * 
-	 * @param l
-	 *            value to convert. Can be <code>null</code>
 	 * @return an instance of <code>l</code> as {@link Integer} or
 	 *         <code>null</code>
 	 * @throws IllegalArgumentException

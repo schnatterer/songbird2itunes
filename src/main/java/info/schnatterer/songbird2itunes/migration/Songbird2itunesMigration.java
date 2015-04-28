@@ -462,7 +462,7 @@ public class Songbird2itunesMigration {
 	/**
 	 * Factory method for {@link ITunes} wrapper. Useful for testing.
 	 * 
-	 * @return
+	 * @return a new instance of {@link ITunes}
 	 */
 	protected ITunes createItunes() {
 		return new ITunes();
