@@ -319,7 +319,7 @@ public class Songbird2itunes {
 			return Optional.of(iTunesTrack);
 		} catch (IOException e) {
 			log.warn(
-					"File not added by iTunes. Corrupt or missing? Skipping file: "
+					"File not added by iTunes. File corrupt, missing or not supported by iTunes? Skipping file: "
 							+ sbTrack.getContentUrl(), e);
 		} catch (WrongParameterException e) {
 			log.warn(
