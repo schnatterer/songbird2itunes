@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package info.schnatterer.songbird2itunes;
+package info.schnatterer.songbird2itunes.migration;
 
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
-public class Songbird2itunesTest {
+public class Songbird2itunesMigrationTest {
 
 	@Test
 	public void test() {
@@ -30,5 +30,7 @@ public class Songbird2itunesTest {
 	// TODO dates from SB are null
 	// TODO URLs are malformed
 	// TODO iTunes Exceptions
+	// TODO setting system clock fails
+	// TODO ...
 
 }
