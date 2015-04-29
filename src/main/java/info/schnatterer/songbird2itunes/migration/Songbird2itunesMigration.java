@@ -23,6 +23,8 @@ import info.schnatterer.itunes4j.exception.ITunesException;
 import info.schnatterer.itunes4j.exception.NotModifiableException;
 import info.schnatterer.itunes4j.exception.WrongParameterException;
 import info.schnatterer.java.lang.ELong;
+import info.schnatterer.java.lang.SystemClock;
+import info.schnatterer.java.lang.SystemClock.SystemClockException;
 import info.schnatterer.songbirddbapi4j.SongbirdDb;
 import info.schnatterer.songbirddbapi4j.domain.MediaItem;
 import info.schnatterer.songbirddbapi4j.domain.MemberMediaItem;
@@ -34,8 +36,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.sql.SQLException;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -46,21 +46,6 @@ import org.slf4j.LoggerFactory;
 public class Songbird2itunesMigration {
 	/** SLF4J-Logger. */
 	private final Logger log = LoggerFactory.getLogger(getClass());
-
-	private static ThreadLocal<DateFormat> dateFormatHolderTime = new ThreadLocal<DateFormat>() {
-		@Override
-		protected DateFormat initialValue() {
-			DateFormat dateFormat = new SimpleDateFormat("HH:mm");
-			return dateFormat;
-		}
-	};
-	private static ThreadLocal<DateFormat> dateFormatHolderDate = new ThreadLocal<DateFormat>() {
-		@Override
-		protected DateFormat initialValue() {
-			DateFormat dateFormat = new SimpleDateFormat("dd-MM-yy");
-			return dateFormat;
-		}
-	};
 
 	/**
 	 * Migrate all tracks and playlists from a songbird database to iTunes.
@@ -88,13 +73,17 @@ public class Songbird2itunesMigration {
 		SongbirdDb songbirdDb = createSongbirdDb(new File(songbirdDbFile));
 		// Create reference to iTunes
 		ITunes iTunes = createItunes();
+		Optional<SystemClock> systemClock = Optional.empty();
+		if (setSystemDate) {
+			systemClock = Optional.of(new SystemClock());
+		}
 
 		Statistics stats = migrateTracks(songbirdDb, iTunes, exceptionRetries,
-				setSystemDate);
+				systemClock);
 
 		// Migrate playlists but do not add attributes again (faster)
 		stats.merge(migratePlaylists(songbirdDb, iTunes, exceptionRetries,
-				false, false));
+				false, Optional.empty()));
 
 		return stats;
 	}
@@ -111,10 +100,9 @@ public class Songbird2itunesMigration {
 	 * @param setProperties
 	 *            <code>true</code> migrates properties lastPlayTime,
 	 *            lastSkipTime, playCount, rating, skipCount
-	 * @param setSystemDate
-	 *            use workaround - try to set the date added in iTunes by
-	 *            setting the system date to the date added and then adding the
-	 *            track
+	 * @param systemClock
+	 *            system clock to set before adding the tracks to iTunes. If
+	 *            {@link Optional#empty()} the system clock is not set.
 	 * 
 	 * @return statistics about the migration
 	 * 
@@ -124,8 +112,9 @@ public class Songbird2itunesMigration {
 	 *             errors when writing to target iTunes
 	 */
 	private Statistics migratePlaylists(SongbirdDb songbirdDb, ITunes iTunes,
-			int exceptionRetries, boolean setProperties, boolean setSystemDate)
-			throws SQLException, ITunesException {
+			int exceptionRetries, boolean setProperties,
+			Optional<SystemClock> systemClock) throws SQLException,
+			ITunesException {
 		Statistics stats = new Statistics();
 		List<SimpleMediaList> playLists = songbirdDb.getPlayLists(true, true);
 		log.info("Found " + playLists.size() + " playlists");
@@ -142,7 +131,7 @@ public class Songbird2itunesMigration {
 
 				Optional<Track> optionalTrack = addTrack(iTunes,
 						member.getMember(), exceptionRetries, setProperties,
-						setSystemDate);
+						systemClock);
 				if (optionalTrack.isPresent()) {
 					printPlaylistTrack(stats.getPlaylistTracksProcessed(),
 							playlistName, member.getMember());
@@ -165,10 +154,9 @@ public class Songbird2itunesMigration {
 	 * @param exceptionRetries
 	 *            After running into a {@link NotModifiableException} - amount
 	 *            of times adding track is retried before exiting with an error.
-	 * @param setSystemDate
-	 *            use workaround - try to set the date added in iTunes by
-	 *            setting the system date to the date added and then adding the
-	 *            track
+	 * @param systemClock
+	 *            system clock to set before adding the tracks to iTunes. If
+	 *            {@link Optional#empty()} the system clock is not set.
 	 * 
 	 * @return statistics about the migration
 	 * 
@@ -178,8 +166,8 @@ public class Songbird2itunesMigration {
 	 *             errors when writing to target iTunes
 	 */
 	private Statistics migrateTracks(SongbirdDb songbirdDb, ITunes iTunes,
-			int exceptionRetries, boolean setSystemDate) throws SQLException,
-			ITunesException {
+			int exceptionRetries, Optional<SystemClock> systemClock)
+			throws SQLException, ITunesException {
 		Statistics stats = new Statistics();
 
 		// Query all tracks from songbird
@@ -190,7 +178,7 @@ public class Songbird2itunesMigration {
 			for (MediaItem sbTrack : tracks) {
 				stats.trackProcessed();
 				Optional<Track> optionalTrack = addTrack(iTunes, sbTrack,
-						exceptionRetries, true, setSystemDate);
+						exceptionRetries, true, systemClock);
 				if (optionalTrack.isPresent()) {
 					printTrack(stats.getTracksProcessed(), optionalTrack.get(),
 							sbTrack.getContentUrl());
@@ -199,9 +187,13 @@ public class Songbird2itunesMigration {
 				}
 			}
 		} finally {
-			if (setSystemDate) {
+			if (systemClock.isPresent()) {
 				log.debug("Trying to resync system time from time server");
-				sysCall("cmd /C w32tm /resync /force");
+				try {
+					systemClock.get().resync();
+				} catch (SystemClockException e) {
+					log.warn("Failed to resync system clock.", e);
+				}
 			}
 		}
 		return stats;
@@ -259,12 +251,9 @@ public class Songbird2itunesMigration {
 	 * @param setProperties
 	 *            <code>true</code> migrates properties lastPlayTime,
 	 *            lastSkipTime, playCount, rating, skipCount
-	 * @param setSystemDate
-	 *            use workaround - try to set the date added in iTunes by
-	 *            setting the system date to the date added and then adding the
-	 *            track. When <code>false</code>, the current system date is
-	 *            used as date adde.Is ignored when <code>setProperties</code>
-	 *            is <code>false</code>.
+	 * @param systemClock
+	 *            system clock to set before adding the tracks to iTunes. If
+	 *            {@link Optional#empty()} the system clock is not set.
 	 * @return an instance of the added track or {@link Optional#empty()} in
 	 *         case of error. If empty, a warning was logged.
 	 * 
@@ -272,8 +261,8 @@ public class Songbird2itunesMigration {
 	 *             after all retries have been used.
 	 */
 	private Optional<Track> addTrack(ITunes iTunes, MediaItem sbTrack,
-			int exceptionRetries, boolean setProperties, boolean setSystemDate)
-			throws ITunesException {
+			int exceptionRetries, boolean setProperties,
+			Optional<SystemClock> systemClock) throws ITunesException {
 		Track iTunesTrack = null;
 		try {
 			// Get absolute path first (as this might fail)
@@ -297,23 +286,21 @@ public class Songbird2itunesMigration {
 			Long skipCount = sbTrack
 					.getPropertyAsLong(Property.PROP_SKIP_COUNT);
 
-			if (setSystemDate) {
-				// TODO fail on error here?
+			if (systemClock.isPresent()) {
 				/*
 				 * Changing the dateAdded is not possible via iTunes COM API
 				 * 
-				 * Dirty Hack: Change the computer's system date, add the file
-				 * and This will only work if the process runs as administrator
-				 * and iTunes is either not running or already started as
-				 * administrator!
+				 * Dirty Hack: Change the computer's system date, then add the
+				 * file. This will only work if the process runs as
+				 * administrator and iTunes is either not running or already
+				 * started as administrator!
 				 */
 				log.debug("Setting system time to " + dateCreated);
-				// dd-MM-yy
-				sysCall("cmd /C date "
-						+ dateFormatHolderDate.get().format(dateCreated));
-				// hh:mm:ss
-				sysCall("cmd /C time "
-						+ dateFormatHolderTime.get().format(dateCreated));
+				try {
+					systemClock.get().set(dateCreated);
+				} catch (SystemClockException e) {
+					log.warn("Failed to set system clock to " + dateCreated, e);
+				}
 			}
 
 			// Play count
@@ -343,7 +330,7 @@ public class Songbird2itunesMigration {
 			// TODO try to convert?
 		} catch (NotModifiableException e) {
 			return retryAdding(e, iTunes, sbTrack, exceptionRetries,
-					setSystemDate);
+					systemClock);
 		}
 		return Optional.empty();
 	}
@@ -378,24 +365,6 @@ public class Songbird2itunesMigration {
 		}
 	}
 
-	private void sysCall(String execCommand) {
-		Process exec;
-		try {
-			exec = Runtime.getRuntime().exec(execCommand);
-			exec.waitFor();
-			if (exec.exitValue() == 1) {
-				log.warn("System call failed (returned 1): \"" + execCommand
-						+ "\"");
-			}
-		} catch (IOException e) {
-			log.warn("System call failed with exception: \"" + execCommand
-					+ "\"", e);
-		} catch (InterruptedException e) {
-			log.warn("System call failed with exception: \"" + execCommand
-					+ "\"", e);
-		}
-	}
-
 	/**
 	 * Retries calling {@link #addTrack(ITunes, MediaItem, Statistics, int)}
 	 * after a {@link ITunesException}. This is done for <code>nRetries</code>
@@ -421,10 +390,9 @@ public class Songbird2itunesMigration {
 	 *            reference to the songbird track
 	 * @param nRetries
 	 *            amount of retries left
-	 * @param setSystemDate
-	 *            use workaround - try to set the date added in iTunes by
-	 *            setting the system date to the date added and then adding the
-	 *            track
+	 * @param systemClock
+	 *            system clock to set before adding the tracks to iTunes. If
+	 *            {@link Optional#empty()} the system clock is not set.
 	 * @return
 	 * 
 	 * @throws ITunesException
@@ -432,14 +400,14 @@ public class Songbird2itunesMigration {
 	 *             {@link #addTrack(ITunes, MediaItem, Statistics, int, boolean)}
 	 */
 	private Optional<Track> retryAdding(ITunesException e, ITunes iTunes,
-			MediaItem sbTrack, int nRetries, boolean setSystemDate)
+			MediaItem sbTrack, int nRetries, Optional<SystemClock> systemClock)
 			throws ITunesException {
 		if (nRetries > 0) {
 			log.debug(
 					"Track was added, but error setting attributes. Retrying "
 							+ nRetries + " more times. File: "
 							+ sbTrack.getContentUrl(), e);
-			return addTrack(iTunes, sbTrack, nRetries - 1, true, setSystemDate);
+			return addTrack(iTunes, sbTrack, nRetries - 1, true, systemClock);
 		} else {
 			log.warn(
 					"Unable set track attributes, tried multiple times without luck. Skipping. You might manually add  File: "
