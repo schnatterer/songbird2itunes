@@ -18,6 +18,7 @@ package info.schnatterer.songbird2itunes;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyListOf;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -29,6 +30,7 @@ import info.schnatterer.songbird2itunes.migration.Songbird2itunesMigration.Stati
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.sql.SQLException;
+import java.util.LinkedList;
 
 import org.apache.tools.ant.types.Commandline;
 import org.junit.Rule;
@@ -67,12 +69,15 @@ public class Songbird2itunesAppTest {
 	 */
 	@Test
 	public void allParams() throws SQLException, ITunesException {
-		when(s2iMock.migrate(anyString(), anyInt(), anyBoolean())).thenReturn(
+		when(
+				s2iMock.migrate(anyString(), anyInt(), anyBoolean(),
+						anyListOf(String.class), anyBoolean())).thenReturn(
 				new Statistics());
 		assertEquals("Running with all parameters returned unexpected result",
 				0, classUnderTest.run(Commandline
 						.translateCommandline("-r 23 -d path")));
-		verify(s2iMock).migrate("path", 23, Boolean.TRUE);
+		verify(s2iMock).migrate("path", 23, Boolean.TRUE,
+				new LinkedList<String>(), false);
 	}
 
 	/**
@@ -98,7 +103,9 @@ public class Songbird2itunesAppTest {
 	 */
 	@Test
 	public void errorConversion() throws SQLException, ITunesException {
-		when(s2iMock.migrate(anyString(), anyInt(), anyBoolean())).thenThrow(
+		when(
+				s2iMock.migrate(anyString(), anyInt(), anyBoolean(),
+						anyListOf(String.class), anyBoolean())).thenThrow(
 				new RuntimeException("Mocked exception"));
 		assertEquals("Error during conversoin returned unexpected result",
 				Songbird2itunesApp.EXIT_ERROR_CONVERSION,
@@ -115,7 +122,9 @@ public class Songbird2itunesAppTest {
 	 */
 	@Test
 	public void notConfirmedWorkaround() throws SQLException, ITunesException {
-		when(s2iMock.migrate(anyString(), anyInt(), anyBoolean())).thenReturn(
+		when(
+				s2iMock.migrate(anyString(), anyInt(), anyBoolean(),
+						anyListOf(String.class), anyBoolean())).thenReturn(
 				new Statistics());
 		Songbird2itunesApp classUnderTestNoConfirmation = new Songbird2itunesApp4Test(
 				"no confirm");
@@ -123,7 +132,8 @@ public class Songbird2itunesAppTest {
 				"Denying confirmation for using the workaround returned unexpected result",
 				Songbird2itunesApp.EXIT_SUCCESS, classUnderTestNoConfirmation
 						.run(Commandline.translateCommandline("-r 23 -d path")));
-		verify(s2iMock, never()).migrate(anyString(), anyInt(), anyBoolean());
+		verify(s2iMock, never()).migrate(anyString(), anyInt(), anyBoolean(),
+				anyListOf(String.class), anyBoolean());
 	}
 
 	private class Songbird2itunesApp4Test extends Songbird2itunesApp {

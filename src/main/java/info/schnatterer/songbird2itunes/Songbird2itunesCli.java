@@ -15,6 +15,7 @@
  */
 package info.schnatterer.songbird2itunes;
 
+import java.util.LinkedList;
 import java.util.List;
 
 import com.beust.jcommander.JCommander;
@@ -49,6 +50,8 @@ public class Songbird2itunesCli {
 	private static final String DESC_RETR = "(optional) Number of retries after an iTunes error";
 	private static final String DESC_DATE_ADDED = "(optional) workaround for migrating the date added to iTunes. NOTE: This requires admin rights and set your system date before adding each track. Use with extreme care.";
 	private static final String DESC_HELP = "(optional) Show this message";
+	private static final String DESC_PLAYLIST_NAMES = "(optional) Names of the playlists that should be migrated. If not specified, all playlist are migrated.";
+	private static final String DESC_PLAYLISTS_ONLY = "(optional) Migrate only the playlists and the tracks within playlists. Don't migrate other tracks.";
 
 	/**
 	 * Reads the command line parameters and prints error messages when
@@ -99,6 +102,12 @@ public class Songbird2itunesCli {
 	@Parameter(names = { "-d", "--dateadded" }, description = DESC_DATE_ADDED)
 	private boolean dateAddedWorkaround = false;
 
+	@Parameter(names = { "-n", "--playlistnames" }, variableArity = true, description = DESC_PLAYLIST_NAMES)
+	private List<String> playlistNames = new LinkedList<>();
+
+	@Parameter(names = { "-p", "--playlistsonly" }, description = DESC_PLAYLISTS_ONLY)
+	private boolean playlistsOnly = false;
+
 	@Parameter(names = "--help", help = true, description = DESC_HELP)
 	private boolean help;
 
@@ -121,5 +130,19 @@ public class Songbird2itunesCli {
 	 */
 	public boolean isDateAddedWorkaround() {
 		return dateAddedWorkaround;
+	}
+
+	/**
+	 * @return the playlistNames
+	 */
+	public List<String> getPlaylistNames() {
+		return playlistNames;
+	}
+
+	/**
+	 * @return the playlistsOnly
+	 */
+	public boolean isPlaylistsOnly() {
+		return playlistsOnly;
 	}
 }

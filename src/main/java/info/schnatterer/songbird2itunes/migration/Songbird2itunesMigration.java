@@ -39,6 +39,8 @@ import java.sql.SQLException;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,6 +61,13 @@ public class Songbird2itunesMigration {
 	 *            use workaround - try to set the date added in iTunes by
 	 *            setting the system date to the date added and then adding the
 	 *            track
+	 * @param playlistNames
+	 *            migrate only the playlists and the tracks within playlists.
+	 *            Don't migrat other tracks. If <code>null</code> or empty, all
+	 *            playlists are migrated.
+	 * @param migratePlaylistsOnly
+	 *            <code>true</code> migrates only the playlists and the tracks
+	 *            within playlists. Don't migrate other tracks.
 	 * 
 	 * @return statistics that keeps track of the number of migrated objects
 	 * 
@@ -68,7 +77,8 @@ public class Songbird2itunesMigration {
 	 *             errors when writing to target iTunes
 	 */
 	public Statistics migrate(String songbirdDbFile, int exceptionRetries,
-			boolean setSystemDate) throws SQLException, ITunesException {
+			boolean setSystemDate, List<String> playlistNames,
+			boolean migratePlaylistsOnly) throws SQLException, ITunesException {
 		// Create database wrapper instance
 		SongbirdDb songbirdDb = createSongbirdDb(new File(songbirdDbFile));
 		// Create reference to iTunes
@@ -78,12 +88,20 @@ public class Songbird2itunesMigration {
 			systemClock = Optional.of(new SystemClock());
 		}
 
-		Statistics stats = migrateTracks(songbirdDb, iTunes, exceptionRetries,
-				systemClock);
+		Statistics stats = new Statistics();
+		if (!migratePlaylistsOnly) {
+			stats.merge(migrateTracks(songbirdDb, iTunes, exceptionRetries,
+					systemClock));
+		} else {
+			log.info("Migrating only tracks that are contained in playlists.");
+		}
 
-		// Migrate playlists but do not add attributes again (faster)
+		/*
+		 * if migrating only playlists, set properties. If tracks have been
+		 * migrated (above) don't set them again (faster)
+		 */
 		stats.merge(migratePlaylists(songbirdDb, iTunes, exceptionRetries,
-				false, Optional.empty()));
+				migratePlaylistsOnly, systemClock, playlistNames));
 
 		return stats;
 	}
@@ -103,6 +121,10 @@ public class Songbird2itunesMigration {
 	 * @param systemClock
 	 *            system clock to set before adding the tracks to iTunes. If
 	 *            {@link Optional#empty()} the system clock is not set.
+	 * @param playlistNames
+	 *            migrate only the playlists and the tracks within playlists.
+	 *            Don't migrat other tracks. If <code>null</code> or empty, all
+	 *            playlists are migrated.
 	 * 
 	 * @return statistics about the migration
 	 * 
@@ -113,16 +135,38 @@ public class Songbird2itunesMigration {
 	 */
 	private Statistics migratePlaylists(SongbirdDb songbirdDb, ITunes iTunes,
 			int exceptionRetries, boolean setProperties,
-			Optional<SystemClock> systemClock) throws SQLException,
-			ITunesException {
+			Optional<SystemClock> systemClock, List<String> playlistNames)
+			throws SQLException, ITunesException {
 		Statistics stats = new Statistics();
 		List<SimpleMediaList> playLists = songbirdDb.getPlayLists(true, true);
-		log.info("Found " + playLists.size() + " playlists");
+		log.info("Found " + playLists.size() + " playlists in songbird");
+
+		if (playlistNames != null && !playlistNames.isEmpty()) {
+			// Remove playlists that are not on the list
+			Set<String> playlistNamesSet = playlistNames.stream()
+					.map(playlistName -> playlistName.toUpperCase())
+					.collect(Collectors.toSet());
+			log.info("The following playlists were found in songbird: "
+					+ extractPlaylistNames(playLists));
+			log.info("The following playlists will be migrated if found in songbird: "
+					+ playlistNames.toString());
+
+			playLists = playLists
+					.stream()
+					.filter(playlist -> {
+						return playlistNamesSet.contains(playlist.getList()
+								.getProperty(Property.PROP_MEDIA_LIST_NAME)
+								.toUpperCase());
+					}).collect(Collectors.toList());
+			log.info("The following playlists from the list were found in songbird and will be migrated: "
+					+ extractPlaylistNames(playLists));
+		}
 
 		for (SimpleMediaList playList : playLists) {
-			stats.playlistProcessed();
 			String playlistName = playList.getList().getProperty(
 					Property.PROP_MEDIA_LIST_NAME);
+
+			stats.playlistProcessed();
 			Playlist iTunesplaylist = iTunes.createPlaylist(playlistName);
 			log.info("Created Playlist #" + stats.getPlaylistsProcessed()
 					+ ": " + playlistName);
@@ -142,6 +186,14 @@ public class Songbird2itunesMigration {
 			}
 		}
 		return stats;
+	}
+
+	private List<String> extractPlaylistNames(List<SimpleMediaList> playLists) {
+		return playLists
+				.stream()
+				.map(playlist -> playlist.getList().getProperty(
+						Property.PROP_MEDIA_LIST_NAME))
+				.collect(Collectors.toList());
 	}
 
 	/**
@@ -526,12 +578,12 @@ public class Songbird2itunesMigration {
 		}
 
 		private void merge(Statistics stats) {
-			this.tracksProcessed = stats.tracksProcessed;
-			this.tracksFailed = stats.tracksFailed;
-			this.playlistTracksProcessed = stats.playlistTracksProcessed;
-			this.playlistTracksFailed = stats.playlistTracksFailed;
-			this.playlistsProcessed = stats.playlistsProcessed;
-			this.playlistsFailed = stats.playlistsFailed;
+			this.tracksProcessed += stats.tracksProcessed;
+			this.tracksFailed += stats.tracksFailed;
+			this.playlistTracksProcessed += stats.playlistTracksProcessed;
+			this.playlistTracksFailed += stats.playlistTracksFailed;
+			this.playlistsProcessed += stats.playlistsProcessed;
+			this.playlistsFailed += stats.playlistsFailed;
 		}
 	}
 }

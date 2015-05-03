@@ -60,14 +60,18 @@ public class Songbird2itunesApp {
 				// Successfully read command line params. Do conversion
 				printStats(createSongbird2itunes().migrate(cliParams.getPath(),
 						cliParams.getRetries(),
-						cliParams.isDateAddedWorkaround()));
+						cliParams.isDateAddedWorkaround(),
+						cliParams.getPlaylistNames(),
+						cliParams.isPlaylistsOnly()));
 				return EXIT_SUCCESS;
 			}
 		} catch (ParameterException e) {
 			log.error("Error parsing command line arguments.");
 			ret = EXIT_INVALID_PARAMS;
-		} catch (Exception e) { // Outmost "catch all" block for logging any
-			// exception exiting application with error
+		} catch (Exception e) { /*
+								 * Outmost "catch all" block for logging any
+								 * exception exiting application with error
+								 */
 			log.error("Conversion failed with error \"" + e.getMessage()
 					+ "\". Please see log file.", e);
 			ret = EXIT_ERROR_CONVERSION;
@@ -130,7 +134,8 @@ public class Songbird2itunesApp {
 	}
 
 	/**
-	 * @return a new instance of {@link Songbird2itunesMigration}. Useful for testing.
+	 * @return a new instance of {@link Songbird2itunesMigration}. Useful for
+	 *         testing.
 	 */
 	Songbird2itunesMigration createSongbird2itunes() {
 		return new Songbird2itunesMigration();
