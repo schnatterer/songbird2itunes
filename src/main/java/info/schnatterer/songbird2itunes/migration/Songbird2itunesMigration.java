@@ -226,8 +226,11 @@ public class Songbird2itunesMigration {
 	 *            the track whose details to log
 	 * @param path
 	 *            path to the track
+	 * 
+	 * @throws ITunesException
 	 */
-	private void printTrack(long trackIndex, Track track, String path) {
+	private void printTrack(long trackIndex, Track track, String path)
+			throws ITunesException {
 		log.info("Added track #" + trackIndex + ": " + track.getArtist()
 				+ " - " + track.getName() + ": created=" + track.getDateAdded()
 				+ "; lastPlayed=" + track.getPlayedDate() + "; lastSkipTime="
