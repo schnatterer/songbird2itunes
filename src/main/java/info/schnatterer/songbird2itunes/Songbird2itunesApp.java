@@ -15,9 +15,11 @@
  */
 package info.schnatterer.songbird2itunes;
 
+import info.schnatterer.java.util.jar.Jar;
 import info.schnatterer.songbird2itunes.migration.Songbird2itunesMigration;
 import info.schnatterer.songbird2itunes.migration.Songbird2itunesMigration.Statistics;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.Scanner;
 
@@ -33,6 +35,7 @@ public class Songbird2itunesApp {
 	static final int EXIT_SUCCESS = 0;
 	static final int EXIT_INVALID_PARAMS = 1;
 	static final int EXIT_ERROR_CONVERSION = 2;
+	static final String PROG_NAME = "songbird2itunes";
 
 	/** SLF4J-Logger. */
 	private final Logger log = LoggerFactory.getLogger(getClass());
@@ -51,8 +54,10 @@ public class Songbird2itunesApp {
 		int ret = 0; // Presume success
 		Songbird2itunesCli cliParams = null;
 
+		printWelcomeMessage();
+
 		try {
-			cliParams = Songbird2itunesCli.readParams(args, "songbird2itunes");
+			cliParams = Songbird2itunesCli.readParams(args, PROG_NAME);
 			if (cliParams != null) {
 				if (cliParams.isDateAddedWorkaround() && !confirmedWorkaround()) {
 					return EXIT_SUCCESS;
@@ -77,6 +82,24 @@ public class Songbird2itunesApp {
 			ret = EXIT_ERROR_CONVERSION;
 		}
 		return ret;
+	}
+
+	/**
+	 * Writes a welcome message to the log/console, including a build number, if
+	 * available.
+	 */
+	private void printWelcomeMessage() {
+		String welcomeMessage = "Welcome to " + PROG_NAME;
+		String buildNumber;
+		try {
+			buildNumber = Jar.getBuildNumberFromManifest();
+			if (buildNumber != null) {
+				welcomeMessage = welcomeMessage + " (" + buildNumber + ")";
+			}
+		} catch (IOException e) {
+			// If something fails we just don't print the build number
+		}
+		log.info(welcomeMessage);
 	}
 
 	/**
