@@ -21,12 +21,12 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 /**
- * A java wrapper for the system clock. For now this will <b>
+ * A java wrapper for the system clock. For now this will
  * <ul>
- * <li>only work on windows</li>
- * <li>only work when run as administrator</li>
+ * <li><b>only work on windows</b></li>
+ * <li><b>only work when run as administrator</b></li>
  * </ul>
- * </b> So better don't use this :)
+ * So better don't use this :)
  * 
  * @author schnatterer
  *
@@ -153,8 +153,8 @@ public class SystemClock {
 		 *            permitted, and indicates that the cause is nonexistent or
 		 *            unknown.)
 		 */
-		public SystemClockException(String message, Throwable t) {
-			super(message, t);
+		public SystemClockException(String message, Throwable cause) {
+			super(message, cause);
 		}
 
 		/**
