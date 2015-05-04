@@ -330,48 +330,52 @@ public class Songbird2itunesMigration {
 			iTunesTrack = iTunes.addFile(absolutePath.get());
 
 			Date dateCreated = sbTrack.getDateCreated();
+			if (setProperties) {
+				Date lastPlayTime = sbTrack
+						.getPropertyAsDate(Property.PROP_LAST_PLAY_TIME);
+				Date lastSkipTime = sbTrack
+						.getPropertyAsDate(Property.PROP_LAST_SKIP_TIME);
+				Long playCount = sbTrack
+						.getPropertyAsLong(Property.PROP_PLAY_COUNT);
+				Long rating = sbTrack.getPropertyAsLong(Property.PROP_RATING);
+				Long skipCount = sbTrack
+						.getPropertyAsLong(Property.PROP_SKIP_COUNT);
 
-			Date lastPlayTime = sbTrack
-					.getPropertyAsDate(Property.PROP_LAST_PLAY_TIME);
-			Date lastSkipTime = sbTrack
-					.getPropertyAsDate(Property.PROP_LAST_SKIP_TIME);
-			Long playCount = sbTrack
-					.getPropertyAsLong(Property.PROP_PLAY_COUNT);
-			Long rating = sbTrack.getPropertyAsLong(Property.PROP_RATING);
-			Long skipCount = sbTrack
-					.getPropertyAsLong(Property.PROP_SKIP_COUNT);
-
-			if (systemClock.isPresent()) {
-				/*
-				 * Changing the dateAdded is not possible via iTunes COM API
-				 * 
-				 * Dirty Hack: Change the computer's system date, then add the
-				 * file. This will only work if the process runs as
-				 * administrator and iTunes is either not running or already
-				 * started as administrator!
-				 */
-				log.debug("Setting system time to " + dateCreated);
-				try {
-					systemClock.get().set(dateCreated);
-				} catch (SystemClockException e) {
-					log.warn("Failed to set system clock to " + dateCreated, e);
+				if (systemClock.isPresent()) {
+					/*
+					 * Changing the dateAdded is not possible via iTunes COM API
+					 * 
+					 * Dirty Hack: Change the computer's system date, then add
+					 * the file. This will only work if the process runs as
+					 * administrator and iTunes is either not running or already
+					 * started as administrator!
+					 */
+					log.debug("Setting system time to " + dateCreated);
+					try {
+						systemClock.get().set(dateCreated);
+					} catch (SystemClockException e) {
+						log.warn(
+								"Failed to set system clock to " + dateCreated,
+								e);
+					}
 				}
-			}
 
-			// Play count
-			iTunesTrack.setPlayedCount(convertSongbirdLongValue(playCount));
-			// last played
-			if (lastPlayTime != null) {
-				iTunesTrack.setPlayedDate(lastPlayTime);
-			}
+				// Play count
+				iTunesTrack.setPlayedCount(convertSongbirdLongValue(playCount));
+				// last played
+				if (lastPlayTime != null) {
+					iTunesTrack.setPlayedDate(lastPlayTime);
+				}
 
-			iTunesTrack.setRating(convertSongbirdRating(rating));
+				iTunesTrack.setRating(convertSongbirdRating(rating));
 
-			// Skip count
-			iTunesTrack.setSkippedCount(convertSongbirdLongValue(skipCount));
-			// last skipped
-			if (lastSkipTime != null) {
-				iTunesTrack.setSkippedDate(lastSkipTime);
+				// Skip count
+				iTunesTrack
+						.setSkippedCount(convertSongbirdLongValue(skipCount));
+				// last skipped
+				if (lastSkipTime != null) {
+					iTunesTrack.setSkippedDate(lastSkipTime);
+				}
 			}
 			return Optional.of(iTunesTrack);
 		} catch (IOException e) {
