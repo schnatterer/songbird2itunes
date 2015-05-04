@@ -138,30 +138,35 @@ public class Songbird2itunesMigration {
 			Optional<SystemClock> systemClock, List<String> playlistNames)
 			throws SQLException, ITunesException {
 		Statistics stats = new Statistics();
-		List<SimpleMediaList> playLists = songbirdDb.getPlayLists(true, true);
-		log.info("Found " + playLists.size() + " playlists in songbird");
 
+		// Find playlists in songbird
+		List<SimpleMediaList> playLists = songbirdDb.getPlayLists(true, true);
+		log.info(playLists.size() + " playlist(s) were found in songbird: "
+				+ extractPlaylistNames(playLists));
+
+		// Filter playlist as requested by the user
 		if (playlistNames != null && !playlistNames.isEmpty()) {
 			// Remove playlists that are not on the list
 			Set<String> playlistNamesSet = playlistNames.stream()
 					.map(playlistName -> playlistName.toUpperCase())
 					.collect(Collectors.toSet());
-			log.info("The following playlists were found in songbird: "
-					+ extractPlaylistNames(playLists));
-			log.info("The following playlists will be migrated if found in songbird: "
+
+			log.info(playlistNames.size()
+					+ " playlist(s) will be migrated if found in songbird: "
 					+ playlistNames.toString());
 
 			playLists = playLists
 					.stream()
-					.filter(playlist -> {
-						return playlistNamesSet.contains(playlist.getList()
-								.getProperty(Property.PROP_MEDIA_LIST_NAME)
-								.toUpperCase());
-					}).collect(Collectors.toList());
-			log.info("The following playlists from the list were found in songbird and will be migrated: "
+					.filter(playlist -> playlistNamesSet.contains(playlist
+							.getList()
+							.getProperty(Property.PROP_MEDIA_LIST_NAME)
+							.toUpperCase())).collect(Collectors.toList());
+			log.info(playLists.size()
+					+ " playlist(s) from the list were found in songbird and will be migrated: "
 					+ extractPlaylistNames(playLists));
 		}
 
+		// Migrate filtered playlists
 		for (SimpleMediaList playList : playLists) {
 			String playlistName = playList.getList().getProperty(
 					Property.PROP_MEDIA_LIST_NAME);
@@ -188,6 +193,13 @@ public class Songbird2itunesMigration {
 		return stats;
 	}
 
+	/**
+	 * Returns only the names of a list of {@link SimpleMediaList}s.
+	 * 
+	 * @param playLists
+	 *            the list of playlist objects
+	 * @return the names of the playlist objects
+	 */
 	private List<String> extractPlaylistNames(List<SimpleMediaList> playLists) {
 		return playLists
 				.stream()
