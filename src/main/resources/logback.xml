@@ -57,5 +57,5 @@
 		<appender-ref ref="STDOUT-WARN" />
 		<appender-ref ref="FILE" />
 	</root>
-
+	<logger name="info.schnatterer.songbirddbapi4j" level="WARN" />
 </configuration>
