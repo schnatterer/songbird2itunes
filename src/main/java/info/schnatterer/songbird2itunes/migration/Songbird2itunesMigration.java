@@ -25,6 +25,7 @@ import info.schnatterer.itunes4j.exception.WrongParameterException;
 import info.schnatterer.java.lang.ELong;
 import info.schnatterer.java.lang.SystemClock;
 import info.schnatterer.java.lang.SystemClock.SystemClockException;
+import info.schnatterer.java.util.Sets;
 import info.schnatterer.songbirddbapi4j.SongbirdDb;
 import info.schnatterer.songbirddbapi4j.domain.MediaItem;
 import info.schnatterer.songbirddbapi4j.domain.MemberMediaItem;
@@ -36,6 +37,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.sql.SQLException;
+import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -121,7 +123,7 @@ public class Songbird2itunesMigration {
 	 * @param systemClock
 	 *            system clock to set before adding the tracks to iTunes. If
 	 *            {@link Optional#empty()} the system clock is not set.
-	 * @param playlistNames
+	 * @param requestedPlaylistNames
 	 *            migrate only the playlists and the tracks within playlists.
 	 *            Don't migrat other tracks. If <code>null</code> or empty, all
 	 *            playlists are migrated.
@@ -135,39 +137,92 @@ public class Songbird2itunesMigration {
 	 */
 	private Statistics migratePlaylists(SongbirdDb songbirdDb, ITunes iTunes,
 			int exceptionRetries, boolean setProperties,
-			Optional<SystemClock> systemClock, List<String> playlistNames)
-			throws SQLException, ITunesException {
+			Optional<SystemClock> systemClock,
+			List<String> requestedPlaylistNames) throws SQLException,
+			ITunesException {
 		Statistics stats = new Statistics();
 
 		// Find playlists in songbird
-		List<SimpleMediaList> playLists = songbirdDb.getPlayLists(true, true);
-		log.info(playLists.size() + " playlist(s) were found in songbird: "
-				+ extractPlaylistNames(playLists));
+		List<SimpleMediaList> playlistsToMigrate = songbirdDb
+				.getPlayLists(true, true)
+				.stream()
+				.sorted((p1, p2) -> p1
+						.getList()
+						.getProperty(Property.PROP_MEDIA_LIST_NAME)
+						.compareTo(
+								p2.getList().getProperty(
+										Property.PROP_MEDIA_LIST_NAME)))
+				.collect(Collectors.toList());
+		log.info(playlistsToMigrate.size()
+				+ " playlist(s) were found in songbird: "
+				+ extractPlaylistNames(playlistsToMigrate));
 
 		// Filter playlist as requested by the user
-		if (playlistNames != null && !playlistNames.isEmpty()) {
-			// Remove playlists that are not on the list
-			Set<String> playlistNamesSet = playlistNames.stream()
-					.map(playlistName -> playlistName.toUpperCase())
-					.collect(Collectors.toSet());
+		if (requestedPlaylistNames != null && !requestedPlaylistNames.isEmpty()) {
+			// Remove duplicates and sort
+			requestedPlaylistNames = requestedPlaylistNames.stream().distinct()
+					.sorted().collect(Collectors.toList());
+			log.info(requestedPlaylistNames.size()
+					+ " playlist(s) were requested by the user: "
+					+ toStringQuoted(requestedPlaylistNames));
 
-			log.info(playlistNames.size()
-					+ " playlist(s) will be migrated if found in songbird: "
-					+ playlistNames.toString());
-
-			playLists = playLists
+			Set<String> requestedPlaylistNamesSetUpper = requestedPlaylistNames
 					.stream()
-					.filter(playlist -> playlistNamesSet.contains(playlist
-							.getList()
-							.getProperty(Property.PROP_MEDIA_LIST_NAME)
-							.toUpperCase())).collect(Collectors.toList());
-			log.info(playLists.size()
+					.map(playlistName -> playlistName.trim().toUpperCase())
+					.collect(Collectors.toSet());
+			Set<String> songbirdPlaylistNamesSetUpper = playlistsToMigrate
+					.stream()
+					.map(playlist -> playlist.getList()
+							.getProperty(Property.PROP_MEDIA_LIST_NAME).trim()
+							.toUpperCase()).collect(Collectors.toSet());
+
+			// find playlists that are only in songbird but not requeted
+			List<String> ignoredPlaylists = Sets
+					.relativeComplement(
+							playlistsToMigrate,
+							requestedPlaylistNamesSetUpper,
+							playlist -> playlist.getList()
+									.getProperty(Property.PROP_MEDIA_LIST_NAME)
+									.trim().toUpperCase())
+					.map(playlist -> playlist.getList().getProperty(
+							Property.PROP_MEDIA_LIST_NAME)).distinct().sorted()
+					.collect(Collectors.toList());
+			if (!ignoredPlaylists.isEmpty()) {
+				log.info(ignoredPlaylists.size()
+						+ " playlists are not migrated because they were not requested by the user: "
+						+ toStringQuoted(ignoredPlaylists));
+			}
+
+			// find playlists thate are only requested but not in songbird
+			List<String> requestedPlaylistsNotFound = Sets
+					.relativeComplement(requestedPlaylistNames,
+							songbirdPlaylistNamesSetUpper,
+							playlistName -> playlistName.trim().toUpperCase())
+					.distinct().sorted().collect(Collectors.toList());
+			if (!requestedPlaylistsNotFound.isEmpty()) {
+				// This must be a warning
+				log.warn(requestedPlaylistsNotFound.size()
+						+ " playlist(s) were requested by the user but not found in songbird: "
+						+ toStringQuoted(requestedPlaylistsNotFound));
+			}
+
+			// Limit to playlists that are both: in songbird and requested
+			playlistsToMigrate = Sets
+					.intersection(
+							playlistsToMigrate,
+							requestedPlaylistNamesSetUpper,
+							playlist -> playlist.getList()
+									.getProperty(Property.PROP_MEDIA_LIST_NAME)
+									.trim().toUpperCase()).distinct()
+					.collect(Collectors.toList());
+
+			log.info(playlistsToMigrate.size()
 					+ " playlist(s) from the list were found in songbird and will be migrated: "
-					+ extractPlaylistNames(playLists));
+					+ extractPlaylistNames(playlistsToMigrate));
 		}
 
 		// Migrate filtered playlists
-		for (SimpleMediaList playList : playLists) {
+		for (SimpleMediaList playList : playlistsToMigrate) {
 			String playlistName = playList.getList().getProperty(
 					Property.PROP_MEDIA_LIST_NAME);
 
@@ -200,12 +255,16 @@ public class Songbird2itunesMigration {
 	 *            the list of playlist objects
 	 * @return the names of the playlist objects
 	 */
-	private List<String> extractPlaylistNames(List<SimpleMediaList> playLists) {
-		return playLists
+	private String extractPlaylistNames(List<SimpleMediaList> playLists) {
+		return toStringQuoted(playLists
 				.stream()
 				.map(playlist -> playlist.getList().getProperty(
 						Property.PROP_MEDIA_LIST_NAME))
-				.collect(Collectors.toList());
+				.collect(Collectors.toList()));
+	}
+
+	private String toStringQuoted(Collection<String> list) {
+		return list.stream().reduce((t, u) -> t + ", \"" + u + "\"").get();
 	}
 
 	/**
