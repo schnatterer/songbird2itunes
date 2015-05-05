@@ -102,7 +102,7 @@ public class Songbird2itunesCli {
 	@Parameter(names = { "-d", "--dateadded" }, description = DESC_DATE_ADDED)
 	private boolean dateAddedWorkaround = false;
 
-	@Parameter(names = { "-n", "--playlistnames" }, variableArity = true, description = DESC_PLAYLIST_NAMES)
+	@Parameter(names = { "-n", "--playlistnames" }, variableArity = true, splitter = NoSplitter.class, description = DESC_PLAYLIST_NAMES)
 	private List<String> playlistNames = new LinkedList<>();
 
 	@Parameter(names = { "-p", "--playlistsonly" }, description = DESC_PLAYLISTS_ONLY)
