@@ -22,7 +22,7 @@ package info.schnatterer.java.lang;
  * @author schnatterer
  *
  */
-public class ELong {
+public class XLong {
 
 	private final java.lang.Long wrappedLong;
 
@@ -32,12 +32,12 @@ public class ELong {
 	 * @param wrappedLong
 	 *            the java long instance to wrap
 	 */
-	public ELong(java.lang.Long wrappedLong) {
+	public XLong(java.lang.Long wrappedLong) {
 		this.wrappedLong = wrappedLong;
 	}
 
 	/**
-	 * Safely casts a {@link ELong} to an {@link Integer}. If {@link ELong}
+	 * Safely casts a {@link XLong} to an {@link Integer}. If {@link XLong}
 	 * cannot fit into an {@link Integer} an exception is thrown.
 	 * 
 	 * @return an instance of <code>l</code> as {@link Integer} or

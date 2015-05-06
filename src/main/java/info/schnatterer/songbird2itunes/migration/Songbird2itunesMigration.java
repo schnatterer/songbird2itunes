@@ -22,7 +22,7 @@ import info.schnatterer.itunes4j.entity.Track;
 import info.schnatterer.itunes4j.exception.ITunesException;
 import info.schnatterer.itunes4j.exception.NotModifiableException;
 import info.schnatterer.itunes4j.exception.WrongParameterException;
-import info.schnatterer.java.lang.ELong;
+import info.schnatterer.java.lang.XLong;
 import info.schnatterer.java.lang.SystemClock;
 import info.schnatterer.java.lang.SystemClock.SystemClockException;
 import info.schnatterer.java.util.Sets;
@@ -591,7 +591,7 @@ public class Songbird2itunesMigration {
 			return 0;
 		}
 
-		return new ELong(longValue).toInt();
+		return new XLong(longValue).toInt();
 	}
 
 	/**
