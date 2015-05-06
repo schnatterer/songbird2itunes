@@ -5,10 +5,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import java.util.Arrays;
-import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.junit.Test;
@@ -23,115 +20,24 @@ public class SetsTest {
 	public static final StringWrapper SW6 = new StringWrapper("6");
 	public static final StringWrapper SW7 = new StringWrapper("7");
 
-	private static final List<StringWrapper> STRING_WRAPPER_1_5 = Arrays
-			.asList(new StringWrapper[] { SW1, SW2, SW3, SW4, SW5 });
-	private static final List<String> STRING_3_7 = Arrays.asList(new String[] {
-			"3", "4", "5", "6", "7" });
-
-	private static final List<StringWrapper> A_DUPLICATES = Arrays
-			.asList(new StringWrapper[] { SW1, SW2, SW3, SW3, SW4, SW5 });
-	@SuppressWarnings("serial")
-	private static final Set<StringWrapper> EXPECTED_INTERSECTION_STRING_WRAPPER = new HashSet<StringWrapper>() {
-		{
-			add(SW3);
-			add(SW4);
-			add(SW5);
-		}
-	};
-	@SuppressWarnings("serial")
-	private static final List<StringWrapper> EXPECTED_INTERCEPTION_DUPLICATES_STRING_WRAPPER = new LinkedList<StringWrapper>() {
-		{
-			addAll(EXPECTED_INTERSECTION_STRING_WRAPPER);
-			add(SW3);
-		}
-	};
-
 	/**
 	 * Test for
-	 * {@link Sets#intersectionSet(java.util.Collection, java.util.Collection, java.util.function.Function)}
+	 * {@link Sets#intersection(java.util.Collection, java.util.Collection, java.util.function.Function)}
 	 * .
 	 */
 	@Test
 	public void testIntersectionSet() {
-		Set<StringWrapper> actual = Sets.intersectionSet(STRING_WRAPPER_1_5,
-				STRING_3_7, aMember -> aMember.getWrapped());
-		assertEquals("intersection returned unexpected result",
-				EXPECTED_INTERSECTION_STRING_WRAPPER, actual);
-	}
+		List<StringWrapper> a = Arrays.asList(new StringWrapper[] { SW1, SW2,
+				SW3, SW4, SW5 });
+		List<String> b = Arrays
+				.asList(new String[] { "3", "4", "5", "6", "7" });
+		List<StringWrapper> expected = Arrays.asList(new StringWrapper[] { SW3,
+				SW4, SW5 });
 
-	/**
-	 * Test for
-	 * {@link Sets#intersectionSet(java.util.Collection, java.util.Collection, java.util.function.Function)}
-	 * that contains duplicates.
-	 */
-	@Test
-	public void testIntersectioSetDuplicate() {
-		Set<StringWrapper> actual = Sets.intersectionSet(A_DUPLICATES,
-				STRING_3_7, aMember -> aMember.getWrapped());
-		assertEquals("intersection returned unexpected result",
-				EXPECTED_INTERSECTION_STRING_WRAPPER, actual);
-	}
-
-	/**
-	 * 
-	 * Test for
-	 * {@link Sets#intersectionList(java.util.Collection, java.util.Collection, java.util.function.Function)}
-	 * .
-	 */
-	@Test
-	public void testIntersectionList() {
-		List<StringWrapper> actual = Sets.intersectionList(STRING_WRAPPER_1_5,
-				STRING_3_7, aMember -> aMember.getWrapped());
-		assertThat("intersection returned unexpected result", actual,
-				containsInAnyOrder(EXPECTED_INTERSECTION_STRING_WRAPPER
-						.toArray()));
-	}
-
-	/**
-	 * Test for
-	 * {@link Sets#intersectionList(java.util.Collection, java.util.Collection, java.util.function.Function)
-	 * *} that contains duplicates.
-	 */
-	@Test
-	public void testIntersectionListDuplicate() {
-		List<StringWrapper> actual = Sets.intersectionList(A_DUPLICATES,
-				STRING_3_7, aMember -> aMember.getWrapped());
-		assertThat(
-				"intersection returned unexpected result",
-				actual,
-				containsInAnyOrder(EXPECTED_INTERCEPTION_DUPLICATES_STRING_WRAPPER
-						.toArray()));
-	}
-
-	/**
-	 * 
-	 * Test for
-	 * {@link Sets#intersectionList(java.util.Collection, java.util.Collection, java.util.function.Function)}
-	 * .
-	 */
-	@Test
-	public void testIntersectionListDistinct() {
-		List<StringWrapper> actual = Sets.intersectionList(STRING_WRAPPER_1_5,
-				STRING_3_7, aMember -> aMember.getWrapped());
-		assertThat("intersection returned unexpected result", actual,
-				containsInAnyOrder(EXPECTED_INTERSECTION_STRING_WRAPPER
-						.toArray()));
-	}
-
-	/**
-	 * Test for
-	 * {@link Sets#intersectionList(java.util.Collection, java.util.Collection, java.util.function.Function)
-	 * *} that contains duplicates.
-	 */
-	@Test
-	public void testIntersectionListDistinctDuplicate() {
-		List<StringWrapper> actual = Sets.intersectionList(A_DUPLICATES,
-				STRING_3_7, aMember -> aMember.getWrapped());
-		assertThat(
-				"intersection returned unexpected result",
-				actual,
-				containsInAnyOrder(EXPECTED_INTERCEPTION_DUPLICATES_STRING_WRAPPER
-						.toArray()));
+		List<StringWrapper> actual = Sets.intersection(a, b,
+				aMember -> aMember.getWrapped()).collect(Collectors.toList());
+		assertEquals("intersection returned unexpected result", expected,
+				actual);
 	}
 
 	/**
