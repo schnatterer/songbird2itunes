@@ -263,8 +263,18 @@ public class Songbird2itunesMigration {
 				.collect(Collectors.toList()));
 	}
 
+	/**
+	 * Convert a list of Strings to a single string, that contains the
+	 * comma-separated strings wrapped in quotes.
+	 * 
+	 * @param list
+	 *            the list to convert
+	 * 
+	 * @return one concatenated string
+	 */
 	private String toStringQuoted(Collection<String> list) {
-		return list.stream().reduce((t, u) -> t + ", \"" + u + "\"").get();
+		return list.stream().map(str -> "\"" + str + "\"")
+				.collect(Collectors.joining(", "));
 	}
 
 	/**
