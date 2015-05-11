@@ -20,7 +20,7 @@
 
 	<groupId>info.schnatterer</groupId>
 	<artifactId>songbird2itunes</artifactId>
-	<version>1.0</version>
+	<version>1.1-SNAPSHOT</version>
 	<name>songbird2itunes</name>
 	<description>Migration tool to migrate a songbird database to itunes</description>
 	<url>https://github.com/schnatterer/songbird2itunes</url>
@@ -36,7 +36,7 @@
 		<connection>scm:git:ssh://github.com/schnatterer/songbird2itunes.git</connection>
 		<developerConnection>scm:git:ssh://git@github.com/schnatterer/songbird2itunes.git</developerConnection>
 		<url>https://github.com/schnatterer/songbird2itunes</url>
-		<tag>v.1.0</tag>
+		<tag>HEAD</tag>
 	</scm>
 
 	<properties>
