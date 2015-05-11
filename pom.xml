@@ -73,21 +73,6 @@
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<version>2.6</version>
-				<configuration>
-					<archive>
-						<manifestEntries>
-							<build>${buildNumber}</build>
-						</manifestEntries>
-						<manifest>
-							<mainClass>info.schnatterer.Main</mainClass>
-						</manifest>
-					</archive>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-release-plugin</artifactId>
 				<version>2.5.1</version>
 				<configuration>
@@ -135,6 +120,9 @@
 							<classpathPrefix>lib/</classpathPrefix>
 							<mainClass>info.schnatterer.songbird2itunes.Songbird2itunesApp</mainClass>
 						</manifest>
+						<manifestEntries>
+							<build>${buildNumber}</build>
+						</manifestEntries>
 					</archive>
 				</configuration>
 			</plugin>
