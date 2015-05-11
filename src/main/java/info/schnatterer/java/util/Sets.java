@@ -41,7 +41,12 @@ public class Sets {
 	 * @param convertAtoB
 	 *            converts elements of <code>a</code> to be comparable with type
 	 *            <code>b</code>
-	 * @return a new instance that contains the intersection between a and b
+	 * @param <T>
+	 *            type of set <code>a</code>
+	 * @param <S>
+	 *            type of set <code>b</code>
+	 * @return a new instance that contains the intersection between
+	 *         <code>a</code> and b<code>b</code>
 	 */
 	public static <T, S> Stream<T> intersection(Collection<T> a,
 			Collection<S> b, Function<T, S> convertAtoB) {
@@ -62,7 +67,15 @@ public class Sets {
 	 * @param convertAtoB
 	 *            converts elements of <code>a</code> to be comparable with type
 	 *            <code>b</code>
-	 * @return a new instance that contains the intersection between a and b
+	 * @param <T>
+	 *            type of set <code>a</code> (the one <code>b</code> is removed
+	 *            from)
+	 * @param <S>
+	 *            type of set <code>b</code> (the one that is removed from
+	 *            <code>a</code> )
+	 * 
+	 * @return a new instance that contains the elements of <code>a</code> that
+	 *         are not in b<code>b</code>
 	 */
 	public static <T, S> Stream<T> relativeComplement(Collection<T> a,
 			Collection<S> b, Function<T, S> convertAtoB) {
