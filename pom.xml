@@ -81,6 +81,14 @@
 					<tagNameFormat>v.@{project.version}</tagNameFormat>
 				</configuration>
 			</plugin>
+			<!-- Deploy to local directory for now -->
+			<plugin>
+				<artifactId>maven-deploy-plugin</artifactId>
+				<version>2.8.1</version>
+				<configuration>
+					<altDeploymentRepository>internal.repo::default::file://${project.build.directory}/release</altDeploymentRepository>
+				</configuration>
+			</plugin>
 			<!-- The configuration of maven-assembly-plugin -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
