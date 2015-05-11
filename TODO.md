@@ -1,0 +1,2 @@
+- (Option for ignoring all warnings)
+- (add application specific exception that always returns stats)
