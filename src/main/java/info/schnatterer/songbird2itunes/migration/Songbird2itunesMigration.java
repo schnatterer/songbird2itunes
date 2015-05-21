@@ -22,9 +22,9 @@ import info.schnatterer.itunes4j.entity.Track;
 import info.schnatterer.itunes4j.exception.ITunesException;
 import info.schnatterer.itunes4j.exception.NotModifiableException;
 import info.schnatterer.itunes4j.exception.WrongParameterException;
-import info.schnatterer.java.lang.XLong;
 import info.schnatterer.java.lang.SystemClock;
 import info.schnatterer.java.lang.SystemClock.SystemClockException;
+import info.schnatterer.java.lang.XLong;
 import info.schnatterer.java.util.Sets;
 import info.schnatterer.songbirddbapi4j.SongbirdDb;
 import info.schnatterer.songbirddbapi4j.domain.MediaItem;
@@ -490,14 +490,20 @@ public class Songbird2itunesMigration {
 		URI uri = null;
 		try {
 			uri = new URI(sbTrack.getContentUrl());
-			return Optional.of(new File(uri).getAbsolutePath());
+			return Optional.of(new File(uri).getCanonicalPath());
 		} catch (URISyntaxException e) {
 			log.warn(
 					"Error adding track iTunes, invalid URI: "
 							+ sbTrack.getContentUrl(), e);
 			return Optional.empty();
 		} catch (IllegalArgumentException e) {
-			log.warn("Songbird track URI cannot is not a valid path within the file system. Error: "
+			log.warn("Songbird track URI is not a valid path within the file system. Error: "
+					+ e.getMessage()
+					+ ". Skipping track: "
+					+ sbTrack.getContentUrl());
+			return Optional.empty();
+		} catch (IOException e) {
+			log.warn("Songbird track URI cannot be found within the file system. Error: "
 					+ e.getMessage()
 					+ ". Skipping track: "
 					+ sbTrack.getContentUrl());
