@@ -1,6 +1,6 @@
 # songbird2itunes
 
-
+[![Build Status](https://travis-ci.org/schnatterer/songbird2itunes.svg?branch=master)](https://travis-ci.org/schnatterer/songbird2itunes)
 [![License](https://img.shields.io/github/license/schnatterer/songbird2itunes.svg)](LICENSE)
 
 Migration tool to migrate a songbird database to itunes
