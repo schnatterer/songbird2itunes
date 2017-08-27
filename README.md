@@ -1,5 +1,8 @@
 # songbird2itunes
 
+
+[![License](https://img.shields.io/github/license/schnatterer/songbird2itunes.svg)](LICENSE)
+
 Migration tool to migrate a songbird database to itunes
 
 ## How to use
